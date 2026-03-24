@@ -9,77 +9,181 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useGlobalState } from "@/components/GlobalState";
 import { useRouter } from "next/navigation";
 import { Loader } from "@/components/ui/Loader";
+import { ERC20ABI } from "@/lib/abis";
+import { formatUnits, parseUnits } from "viem";
+import { useAccount, usePublicClient } from "wagmi";
+
+const CONDITION_TYPES = ["above", "below"] as const;
+
+const TARGET_PRICE_RULES: Record<string, { min: number; max: number; decimals: number }> = {
+    ETH: { min: 100, max: 100000, decimals: 2 },
+    BTC: { min: 1000, max: 250000, decimals: 2 },
+    SOL: { min: 1, max: 5000, decimals: 3 },
+    XLM: { min: 0.01, max: 50, decimals: 4 },
+    USDC: { min: 0.95, max: 1.05, decimals: 4 },
+};
+
+const DEFAULT_TARGET_RULE = { min: 0.000001, max: 1000000000, decimals: 8 };
+const STAKE_DECIMALS = 18;
+
+const parsePrice = (value: string): number =>
+    Number.parseFloat(value.replace(/[$,\s]/g, ""));
+
+const getTargetRule = (asset: string) =>
+    TARGET_PRICE_RULES[asset.trim().toUpperCase()] ?? DEFAULT_TARGET_RULE;
+
+const toEndOfDay = (dateInput: string): Date =>
+    new Date(`${dateInput}T23:59:59`);
 
 export default function CreatePage() {
     const { createCall, isLoading } = useGlobalState();
     const router = useRouter();
+    const publicClient = usePublicClient();
+    const { address } = useAccount();
 
-    // Dynamic validation for Target Price based on asset (token)
-    const getTargetPriceSchema = (asset: string) => {
-        if (asset.toUpperCase() === "ETH") {
-            return z.string().refine(val => {
-                const num = parseFloat(val.replace(/[^0-9.]/g, ""));
-                return num >= 100 && num <= 100000;
-            }, {
-                message: "Target price for ETH must be between $100 and $100,000"
-            });
-        }
-        return z.string().refine(val => {
-            const num = parseFloat(val.replace(/[^0-9.]/g, ""));
-            return num > 0;
-        }, {
-            message: "Target price must be a positive number"
-        });
-    };
+    const [walletStakeBalance, setWalletStakeBalance] = React.useState<bigint | null>(null);
+    const stakeTokenAddress = process.env.NEXT_PUBLIC_MOCK_TOKEN_ADDRESS as `0x${string}` | undefined;
 
-    const CreateCallSchema = z.object({
-        title: z.string().min(5, "Title is required and must be at least 5 characters"),
-        thesis: z.string().optional(),
-        asset: z.string().min(2, "Asset is required"),
-        target: z.string(),
-        deadline: z.string().refine(val => {
-            const date = new Date(val);
-            return date > new Date();
-        }, {
-            message: "End date must be in the future"
-        }),
-        stake: z.string().refine(val => {
-            const num = parseFloat(val);
-            return num > 0;
-        }, {
-            message: "Stake amount must be positive"
-        })
-    });
+    React.useEffect(() => {
+        let cancelled = false;
+
+        const fetchStakeBalance = async () => {
+            if (!publicClient || !address || !stakeTokenAddress) {
+                setWalletStakeBalance(null);
+                return;
+            }
+
+            try {
+                const balance = await publicClient.readContract({
+                    address: stakeTokenAddress,
+                    abi: ERC20ABI,
+                    functionName: "balanceOf",
+                    args: [address],
+                });
+
+                if (!cancelled) {
+                    setWalletStakeBalance(balance as bigint);
+                }
+            } catch {
+                if (!cancelled) {
+                    setWalletStakeBalance(null);
+                }
+            }
+        };
+
+        void fetchStakeBalance();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [address, publicClient, stakeTokenAddress]);
+
+    const createCallSchema = React.useMemo(
+        () =>
+            z
+                .object({
+                    title: z
+                        .string()
+                        .trim()
+                        .min(5, "Title is required and must be at least 5 characters"),
+                    thesis: z.string().trim().optional(),
+                    asset: z.string().trim().min(2, "Asset is required"),
+                    conditionType: z.enum(CONDITION_TYPES),
+                    target: z.string().trim().min(1, "Target price is required"),
+                    deadline: z
+                        .string()
+                        .min(1, "End date is required")
+                        .refine((value) => toEndOfDay(value) > new Date(), {
+                            message: "End date must be in the future",
+                        }),
+                    stake: z
+                        .string()
+                        .trim()
+                        .refine((value) => Number.parseFloat(value) > 0, {
+                            message: "Stake amount must be positive",
+                        }),
+                })
+                .strict()
+                .superRefine((data, ctx) => {
+                    const rule = getTargetRule(data.asset);
+                    const targetNumber = parsePrice(data.target);
+
+                    if (!Number.isFinite(targetNumber)) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: ["target"],
+                            message: "Target price must be a valid number",
+                        });
+                        return;
+                    }
+
+                    if (targetNumber < rule.min || targetNumber > rule.max) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: ["target"],
+                            message: `Target price for ${data.asset.toUpperCase()} must be between $${rule.min.toLocaleString(undefined, {
+                                maximumFractionDigits: rule.decimals,
+                            })} and $${rule.max.toLocaleString(undefined, {
+                                maximumFractionDigits: rule.decimals,
+                            })}`,
+                        });
+                    }
+
+                    const stakeNumber = Number.parseFloat(data.stake);
+                    if (!Number.isFinite(stakeNumber) || stakeNumber <= 0) {
+                        return;
+                    }
+
+                    if (walletStakeBalance !== null) {
+                        try {
+                            const normalizedStake = parseUnits(data.stake, STAKE_DECIMALS);
+                            if (normalizedStake > walletStakeBalance) {
+                                ctx.addIssue({
+                                    code: z.ZodIssueCode.custom,
+                                    path: ["stake"],
+                                    message: "Stake amount exceeds balance",
+                                });
+                            }
+                        } catch {
+                            ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                path: ["stake"],
+                                message: "Stake amount has too many decimal places",
+                            });
+                        }
+                    }
+                }),
+        [walletStakeBalance]
+    );
+
+    type CreateCallFormData = z.infer<typeof createCallSchema>;
 
     const {
         register,
         handleSubmit,
         formState: { errors },
-        watch,
-        setError,
-        clearErrors
-    } = useForm({
-        resolver: zodResolver(CreateCallSchema),
-        mode: "onChange"
+        trigger,
+    } = useForm<CreateCallFormData>({
+        resolver: zodResolver(createCallSchema),
+        mode: "onChange",
+        defaultValues: {
+            conditionType: "above",
+        },
     });
 
-    const asset = watch("asset");
-    const target = watch("target");
-
     React.useEffect(() => {
-        if (asset && target) {
-            const schema = getTargetPriceSchema(asset);
-            const result = schema.safeParse(target);
-            if (!result.success) {
-                setError("target", { type: "manual", message: result.error.issues[0].message });
-            } else {
-                clearErrors("target");
-            }
-        }
-    }, [asset, target, setError, clearErrors]);
+        void trigger("stake");
+    }, [walletStakeBalance, trigger]);
 
-    const onSubmit = async (data: any) => {
-        await createCall(data);
+    const onSubmit = async (data: CreateCallFormData) => {
+        await createCall({
+            title: data.title,
+            thesis: data.thesis?.trim() ?? "",
+            asset: data.asset,
+            target: `${data.conditionType.toUpperCase()} ${data.target}`,
+            deadline: data.deadline,
+            stake: data.stake,
+        });
         router.push('/feed');
     };
 
@@ -148,20 +252,36 @@ export default function CreatePage() {
                             {errors.asset && <p className="text-red-500 text-xs mt-1">{errors.asset.message}</p>}
                         </div>
 
-                        {/* Target Price */}
+                        {/* Condition Type */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium flex items-center gap-2">
                                 <Target className="h-4 w-4 text-primary" />
-                                Target Price / Condition
+                                Condition Type
                             </label>
-                            <input
-                                type="text"
-                                placeholder="e.g., $5,000"
+                            <select
                                 className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                                {...register("target")}
-                            />
-                            {errors.target && <p className="text-red-500 text-xs mt-1">{errors.target.message}</p>}
+                                {...register("conditionType")}
+                            >
+                                <option value="above">Price goes above target</option>
+                                <option value="below">Price goes below target</option>
+                            </select>
+                            {errors.conditionType && <p className="text-red-500 text-xs mt-1">{errors.conditionType.message}</p>}
                         </div>
+                    </div>
+
+                    {/* Target Price */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium flex items-center gap-2">
+                            <Target className="h-4 w-4 text-primary" />
+                            Target Price
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="e.g., $5,000"
+                            className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                            {...register("target")}
+                        />
+                        {errors.target && <p className="text-red-500 text-xs mt-1">{errors.target.message}</p>}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -188,9 +308,17 @@ export default function CreatePage() {
                             <input
                                 type="number"
                                 placeholder="100"
+                                step="0.000001"
                                 className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                                 {...register("stake")}
                             />
+                            {walletStakeBalance !== null && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Available balance: {Number(formatUnits(walletStakeBalance, STAKE_DECIMALS)).toLocaleString(undefined, {
+                                        maximumFractionDigits: 6,
+                                    })} USDC
+                                </p>
+                            )}
                             {errors.stake && <p className="text-red-500 text-xs mt-1">{errors.stake.message}</p>}
                         </div>
                     </div>
@@ -216,4 +344,3 @@ export default function CreatePage() {
         </AppLayout>
     );
 }
-// ...existing code...
