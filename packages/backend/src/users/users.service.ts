@@ -92,7 +92,7 @@ export class UsersService {
     wallet: string,
   ): Promise<{ successfulReferralCount: number }> {
     const successfulReferralCount = await this.usersRepository.count({
-      where: { referredBy: wallet },
+      where: { referredByWallet: wallet },
     });
     return { successfulReferralCount };
   }

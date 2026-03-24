@@ -18,16 +18,25 @@ export class AuthService {
     let user = await this.usersRepository.findOne({ where: { wallet } });
     if (!user) {
       const normalizedReferrer = referrerWallet?.trim();
-      const existingReferrer =
-        normalizedReferrer && normalizedReferrer !== wallet
-          ? await this.usersRepository.findOne({
-              where: { wallet: normalizedReferrer },
-            })
-          : null;
+      let referrer: User | null = null;
+
+      if (normalizedReferrer && normalizedReferrer !== wallet) {
+        referrer = await this.usersRepository.findOne({
+          where: { wallet: normalizedReferrer },
+          relations: ['referredBy'],
+        });
+
+        // Prevention of cyclic referrals (A refers B refers A)
+        // If the referrer (A) was referred by the current user (B), then B cannot be referred by A.
+        if (referrer && referrer.referredByWallet === wallet) {
+          referrer = null;
+        }
+      }
+
       user = this.usersRepository.create({
         wallet,
         chain,
-        referredBy: existingReferrer?.wallet,
+        referredByWallet: referrer?.wallet,
       });
       await this.usersRepository.save(user);
     } else if (user.chain !== chain) {
