@@ -1,4 +1,12 @@
-import { Entity, Column, PrimaryColumn, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryColumn,
+  CreateDateColumn,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+} from 'typeorm';
 
 export type ChainType = 'base' | 'stellar';
 
@@ -26,7 +34,14 @@ export class User {
   avatarCid: string;
 
   @Column({ nullable: true })
-  referredBy: string;
+  referredByWallet: string;
+
+  @ManyToOne(() => User, (user) => user.referrals)
+  @JoinColumn({ name: 'referredByWallet' })
+  referredBy: User;
+
+  @OneToMany(() => User, (user) => user.referredBy)
+  referrals: User[];
 
   @Column({ type: 'int', default: 100 })
   reputationScore: number;
