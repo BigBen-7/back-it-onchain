@@ -21,7 +21,10 @@ import { NotificationBell } from "./NotificationBell";
 import { useChain } from "./ChainProvider";
 import { useStellarWallet } from "./StellarWalletProvider";
 
+import { useTranslations } from "next-intl";
+
 export function Navbar() {
+  const t = useTranslations("Navbar");
   const { address: evmAddress, isConnected: isEvmConnected } = useAccount();
   const { selectedChain } = useChain();
   const { publicKey: stellarAddress, isConnected: isStellarConnected } = useStellarWallet();
@@ -31,7 +34,7 @@ export function Navbar() {
 
   return (
     <div className="flex justify-between items-center py-4 px-6 bg-white shadow-sm mb-8">
-      <div className="text-xl font-bold text-indigo-600">Back It (Onchain)</div>
+      <div className="text-xl font-bold text-indigo-600">{t("title")}</div>
       <div className="flex items-center gap-4">
         <ChainSelector />
         {isConnected && address && <NotificationBell userWallet={address} />}
@@ -53,7 +56,7 @@ export function Navbar() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Wallet Settings
+              {t("wallet_settings")}
             </WalletDropdownLink>
             <WalletDropdownDisconnect />
           </WalletDropdown>

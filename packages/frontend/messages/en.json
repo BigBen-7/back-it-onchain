@@ -1,0 +1,39 @@
+{
+  "Common": {
+    "explore": "Explore",
+    "language_selector": "Language"
+  },
+  "Landing": {
+    "heroTitle": "Predict the Future. Back It Onchain.",
+    "heroSub": "The social prediction layer for Stellar and Base.",
+    "live": "Live on Base Sepolia",
+    "features": {
+      "create": {
+        "title": "Create Calls",
+        "description": "Predict price movement by creating calls with target prices and timeframes."
+      },
+      "stake": {
+        "title": "Stake Reputation",
+        "description": "Back other users' calls to build reputation and signal conviction."
+      },
+      "earn": {
+        "title": "Earn Rewards",
+        "description": "Win rewards when your predictions are correct — reputation and payouts."
+      }
+    }
+  },
+  "Nav": {
+    "home": "Home",
+    "explore": "Explore",
+    "leaderboard": "Leaderboard",
+    "create": "Create",
+    "portfolio": "Portfolio",
+    "activity": "Activity",
+    "profile": "Profile",
+    "connect_stellar": "Connect Stellar"
+  },
+  "Navbar": {
+    "title": "Back It (Onchain)",
+    "wallet_settings": "Wallet Settings"
+  }
+}

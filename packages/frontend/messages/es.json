@@ -1,0 +1,39 @@
+{
+  "Common": {
+    "explore": "Explorar",
+    "language_selector": "Idioma"
+  },
+  "Landing": {
+    "heroTitle": "Predice el Futuro. Apóyalo Onchain.",
+    "heroSub": "La capa de predicción social para Stellar y Base.",
+    "live": "En vivo en Base Sepolia",
+    "features": {
+      "create": {
+        "title": "Crear Llamadas",
+        "description": "Predice el movimiento de precios creando llamadas con precios objetivo y plazos."
+      },
+      "stake": {
+        "title": "Apostar Reputación",
+        "description": "Apoya las llamadas de otros usuarios para construir reputación y demostrar convicción."
+      },
+      "earn": {
+        "title": "Ganar Recompensas",
+        "description": "Gana recompensas cuando tus predicciones sean correctas: reputación y pagos."
+      }
+    }
+  },
+  "Nav": {
+    "home": "Inicio",
+    "explore": "Explorar",
+    "leaderboard": "Clasificación",
+    "create": "Crear",
+    "portfolio": "Portafolio",
+    "activity": "Actividad",
+    "profile": "Perfil",
+    "connect_stellar": "Conectar Stellar"
+  },
+  "Navbar": {
+    "title": "Back It (Onchain)",
+    "wallet_settings": "Ajustes de Cartera"
+  }
+}

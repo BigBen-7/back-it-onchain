@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Home, Search, PlusSquare, Bell, User, Trophy, Briefcase } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ChainSelector } from "@/components/ChainSelector";
@@ -26,18 +27,19 @@ import {
 } from "@coinbase/onchainkit/identity";
 
 export function Nav() {
+  const t = useTranslations("Nav");
   const { selectedChain } = useChain();
 
   const pathname = usePathname();
 
   const navItems = [
-    { icon: Home, label: "Home", href: "/feed" },
-    { icon: Search, label: "Explore", href: "/explore" },
-    { icon: Trophy, label: "Leaderboard", href: "/leaderboard" },
-    { icon: PlusSquare, label: "Create", href: "/create" },
-    { icon: Briefcase, label: "Portfolio", href: "/portfolio" },
-    { icon: Bell, label: "Activity", href: "/activity" },
-    { icon: User, label: "Profile", href: "/profile" },
+    { icon: Home, label: t("home"), href: "/feed" },
+    { icon: Search, label: t("explore"), href: "/explore" },
+    { icon: Trophy, label: t("leaderboard"), href: "/leaderboard" },
+    { icon: PlusSquare, label: t("create"), href: "/create" },
+    { icon: Briefcase, label: t("portfolio"), href: "/portfolio" },
+    { icon: Bell, label: t("activity"), href: "/activity" },
+    { icon: User, label: t("profile"), href: "/profile" },
   ];
 
   return (
@@ -106,9 +108,14 @@ export function Nav() {
               className="w-full py-3 px-4 rounded-xl bg-white text-black font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all"
             >
               <div className="relative w-5 h-5">
-                <Image src="/icons/stellar.svg" alt="Stellar" fill className="object-contain" />
+                <Image
+                  src="/icons/stellar.svg"
+                  alt="Stellar"
+                  fill
+                  className="object-contain"
+                />
               </div>
-              Connect Stellar
+              {t("connect_stellar")}
             </button>
           )}
         </div>

@@ -1,23 +1,31 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { TrendingUp, ShieldCheck, Users } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ChainSelector } from "@/components/ChainSelector";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import MarketTicker from "@/components/MarketTicker";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function LandingPage() {
+  const t = useTranslations("Landing");
+  const commonT = useTranslations("Common");
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             <ChainSelector />
             <Link
               href="/feed"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              Explore
+              {commonT("explore")}
             </Link>
             <WalletConnectButton />
           </div>
@@ -27,24 +35,22 @@ export default function LandingPage() {
       <main className="flex-1">
         {/* Hero Section */}
         <section className="relative py-20 md:py-32 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-background to-background z-0" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-primary/20 via-background to-background z-0" />
 
           <div className="container mx-auto px-4 relative z-10 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/50 border border-border mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
               <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
               <span className="text-xs font-medium text-muted-foreground">
-                Live on Base Sepolia
+                {t("live")}
               </span>
             </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-4 leading-tight">
-              Predict the Future.
-              <br />
-              Back It Onchain.
+              {t("heroTitle")}
             </h1>
 
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
-              The social prediction layer for Stellar and Base.
+              {t("heroSub")}
             </p>
 
             <div className="mb-8">
@@ -65,18 +71,18 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-3 gap-8">
               <FeatureCard
                 icon={<TrendingUp className="h-8 w-8 text-primary" />}
-                title="Create Calls"
-                description="Predict price movement by creating calls with target prices and timeframes."
+                title={t("features.create.title")}
+                description={t("features.create.description")}
               />
               <FeatureCard
                 icon={<ShieldCheck className="h-8 w-8 text-accent" />}
-                title="Stake Reputation"
-                description="Back other users' calls to build reputation and signal conviction."
+                title={t("features.stake.title")}
+                description={t("features.stake.description")}
               />
               <FeatureCard
                 icon={<Users className="h-8 w-8 text-blue-500" />}
-                title="Earn Rewards"
-                description="Win rewards when your predictions are correct — reputation and payouts."
+                title={t("features.earn.title")}
+                description={t("features.earn.description")}
               />
             </div>
           </div>
