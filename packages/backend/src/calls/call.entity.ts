@@ -14,6 +14,12 @@ export class Call {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ nullable: true })
+  title: string;
+
+  @Column({ nullable: true })
+  description: string;
+
   @Column({ type: 'bigint', nullable: true })
   callOnchainId: string;
 
@@ -68,6 +74,12 @@ export class Call {
 
   @Column({ default: 'base' })
   chain: 'base' | 'stellar';
+
+  @Column({ default: false })
+  isHidden: boolean;
+
+  @Column({ default: 0 })
+  reportCount: number;
 
   @CreateDateColumn()
   createdAt: Date;

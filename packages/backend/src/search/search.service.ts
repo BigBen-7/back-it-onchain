@@ -77,10 +77,11 @@ export class SearchService {
         c."createdAt"
       FROM "call" c
       WHERE
-        to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.description, ''))
+        (to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.description, ''))
           @@ plainto_tsquery('english', $1)
         OR c.title ILIKE $2
-        OR c.description ILIKE $2
+        OR c.description ILIKE $2)
+        AND c."isHidden" = false
       ORDER BY
         ts_rank(
           to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.description, '')),

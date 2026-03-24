@@ -32,7 +32,7 @@ export class FeedService {
 
     // 2. Get calls from these wallets
     return this.callRepository.find({
-      where: { creatorWallet: In(followingWallets) },
+      where: { creatorWallet: In(followingWallets), isHidden: false },
       order: { createdAt: 'DESC' },
       take: limit,
       skip: offset,
@@ -50,6 +50,7 @@ export class FeedService {
     return this.callRepository
       .createQueryBuilder('call')
       .leftJoinAndSelect('call.creator', 'creator')
+      .where('call.isHidden = :isHidden', { isHidden: false })
       .addSelect('(call.totalStakeYes + call.totalStakeNo)', 'total_stake')
       .orderBy('total_stake', 'DESC')
       .addOrderBy('call.createdAt', 'DESC')

@@ -19,7 +19,10 @@ export class CallsService {
   }
 
   async findAll(options?: { chain?: 'base' | 'stellar' }): Promise<Call[]> {
-    const where = options?.chain ? { chain: options.chain } : {};
+    const where: any = { isHidden: false };
+    if (options?.chain) {
+      where.chain = options.chain;
+    }
     return this.callsRepository.find({
       where,
       order: { createdAt: 'DESC' },
@@ -32,8 +35,19 @@ export class CallsService {
   }
 
   async report(id: number, reason: string): Promise<{ success: boolean; message: string }> {
-    // Standard implementation for logging reports against an ID without a dedicated Database Table
-    console.log(`[Report Received] Call ID: ${id} | Reason: ${reason}`);
+    const call = await this.callsRepository.findOne({ where: { id } });
+    if (!call) {
+      return { success: false, message: 'Call not found' };
+    }
+
+    call.reportCount += 1;
+    if (call.reportCount >= 5) {
+      call.isHidden = true;
+    }
+
+    await this.callsRepository.save(call);
+
+    console.log(`[Report Received] Call ID: ${id} | Reason: ${reason} | Report Count: ${call.reportCount}`);
     return { success: true, message: 'Report submitted successfully' };
   }
 

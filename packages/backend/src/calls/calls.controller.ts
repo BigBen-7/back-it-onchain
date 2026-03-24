@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Request, HttpException, HttpStatus } from '@nestjs/common';
 import { CallsService } from './calls.service';
 import { Call } from './call.entity';
 
@@ -22,7 +22,11 @@ export class CallsController {
   }
 
   @Post(':id/report')
-  report(@Param('id') id: string, @Body('reason') reason: string) {
+  report(@Param('id') id: string, @Body('reason') reason: string, @Request() req: any) {
+    const wallet = req.user?.wallet || req.headers['x-user-wallet'];
+    if (!wallet) {
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+    }
     return this.callsService.report(+id, reason);
   }
 
