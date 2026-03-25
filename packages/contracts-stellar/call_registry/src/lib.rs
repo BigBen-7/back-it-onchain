@@ -22,10 +22,20 @@ pub struct Call {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CreateCallMetadata {
+    pub token_address: Address,
+    pub pair_id: BytesN<32>,
+    pub ipfs_cid: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
     Call(u64),
     NextCallId,
     UserStake(u64, Address, bool),
+    Admin,
+    IsPaused,
 }
 
 #[contract]
@@ -33,8 +43,57 @@ pub struct CallRegistry;
 
 #[contractimpl]
 impl CallRegistry {
+    fn get_admin(env: &Env) -> Address {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Admin)
+            .expect("Admin not set")
+    }
+
+    fn is_paused(env: &Env) -> bool {
+        env.storage()
+            .persistent()
+            .get(&DataKey::IsPaused)
+            .unwrap_or(false)
+    }
+
+    fn assert_not_paused(env: &Env) {
+        if Self::is_paused(env) {
+            panic!("Contract is paused");
+        }
+    }
+
+    /// Initialize admin and pause state
+    pub fn initialize(env: Env, admin: Address) {
+        if env.storage().persistent().has(&DataKey::Admin) {
+            panic!("Contract already initialized");
+        }
+
+        admin.require_auth();
+        env.storage().persistent().set(&DataKey::Admin, &admin);
+        env.storage().persistent().set(&DataKey::IsPaused, &false);
+    }
+
+    /// Pause write operations (admin only)
+    pub fn pause(env: Env) {
+        let admin = Self::get_admin(&env);
+        admin.require_auth();
+        env.storage().persistent().set(&DataKey::IsPaused, &true);
+    }
+
+    /// Resume write operations (admin only)
+    pub fn unpause(env: Env) {
+        let admin = Self::get_admin(&env);
+        admin.require_auth();
+        env.storage().persistent().set(&DataKey::IsPaused, &false);
+    }
+
+    pub fn get_is_paused(env: Env) -> bool {
+        Self::is_paused(&env)
+    }
+
     /// Create a new prediction call
-    /// Accepts creator, stake token, stake amount, end timestamp, token address, pair ID, and IPFS CID
+    /// Accepts creator, stake token, stake amount, end timestamp, and call metadata
     /// Transfers stake from creator to contract (escrow)
     /// Stores call data in persistent storage
     /// Emits CallCreated event
@@ -45,10 +104,9 @@ impl CallRegistry {
         stake_token: Address,
         stake_amount: i128,
         end_ts: u64,
-        token_address: Address,
-        pair_id: BytesN<32>,
-        ipfs_cid: String,
+        metadata: CreateCallMetadata,
     ) -> u64 {
+        Self::assert_not_paused(&env);
         creator.require_auth();
 
         if end_ts <= env.ledger().timestamp() {
@@ -81,9 +139,9 @@ impl CallRegistry {
             total_stake_no: 0,
             start_ts,
             end_ts,
-            token_address: token_address.clone(),
-            pair_id: pair_id.clone(),
-            ipfs_cid: ipfs_cid.clone(),
+            token_address: metadata.token_address.clone(),
+            pair_id: metadata.pair_id.clone(),
+            ipfs_cid: metadata.ipfs_cid.clone(),
             settled: false,
             outcome: false,
             final_price: 0,
@@ -110,9 +168,9 @@ impl CallRegistry {
                 stake_amount,
                 start_ts,
                 end_ts,
-                token_address,
-                pair_id,
-                ipfs_cid,
+                metadata.token_address,
+                metadata.pair_id,
+                metadata.ipfs_cid,
             ),
         );
 
@@ -126,6 +184,7 @@ impl CallRegistry {
     /// Updates total_stake_yes or total_stake_no
     /// Emits StakeAdded event
     pub fn stake_on_call(env: Env, call_id: u64, staker: Address, amount: i128, position: bool) {
+        Self::assert_not_paused(&env);
         staker.require_auth();
 
         let key = DataKey::Call(call_id);

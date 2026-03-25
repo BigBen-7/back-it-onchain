@@ -1,7 +1,10 @@
 #![cfg(test)]
 
 use crate::{OutcomeManagerContract, OutcomeManagerContractClient};
-use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
+use soroban_sdk::{
+    testutils::{Address as _, MockAuth, MockAuthInvoke},
+    Address, BytesN, Env, IntoVal,
+};
 
 #[test]
 fn test_initialize() {
@@ -16,7 +19,8 @@ fn test_initialize() {
 
     // Verify oracle returns false for non-existent oracle
     let random_oracle = BytesN::from_array(&env, &[1; 32]);
-    assert_eq!(client.is_authorized_oracle(&random_oracle), false);
+    assert!(!client.is_authorized_oracle(&random_oracle));
+    assert!(!client.get_is_paused());
 }
 
 #[test]
@@ -36,11 +40,11 @@ fn test_set_oracle() {
     client.set_oracle(&oracle, &true);
 
     // Verify oracle is authorized
-    assert_eq!(client.is_authorized_oracle(&oracle), true);
+    assert!(client.is_authorized_oracle(&oracle));
 
     // Revoke oracle
     client.set_oracle(&oracle, &false);
-    assert_eq!(client.is_authorized_oracle(&oracle), false);
+    assert!(!client.is_authorized_oracle(&oracle));
 }
 
 #[test]
@@ -70,7 +74,7 @@ fn test_register_call() {
     assert_eq!(call_data.id, call_id);
     assert_eq!(call_data.long_tokens, long_tokens);
     assert_eq!(call_data.short_tokens, short_tokens);
-    assert_eq!(call_data.settled, false);
+    assert!(!call_data.settled);
 }
 
 #[test]
@@ -130,5 +134,91 @@ fn test_has_withdrawn() {
     let call_id = 1u64;
 
     // Initially, user has not withdrawn
-    assert_eq!(client.has_withdrawn(&call_id, &user), false);
+    assert!(!client.has_withdrawn(&call_id, &user));
+}
+
+#[test]
+#[should_panic(expected = "Contract is paused")]
+fn test_submit_outcome_when_paused() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register_contract(None, OutcomeManagerContract);
+    let client = OutcomeManagerContractClient::new(&env, &contract_id);
+
+    let owner = Address::generate(&env);
+    let registry = Address::generate(&env);
+
+    client.initialize(&owner, &registry);
+    client.pause();
+
+    client.submit_outcome(
+        &1u64,
+        &true,
+        &100u128,
+        &1234u64,
+        &BytesN::from_array(&env, &[7; 32]),
+        &BytesN::from_array(&env, &[8; 64]),
+    );
+}
+
+#[test]
+#[should_panic]
+fn test_pause_requires_owner_auth() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, OutcomeManagerContract);
+    let client = OutcomeManagerContractClient::new(&env, &contract_id);
+
+    let owner = Address::generate(&env);
+    let attacker = Address::generate(&env);
+    let registry = Address::generate(&env);
+
+    client.initialize(&owner, &registry);
+
+    env.mock_auths(&[MockAuth {
+        address: &attacker,
+        invoke: &MockAuthInvoke {
+            contract: &contract_id,
+            fn_name: "pause",
+            args: ().into_val(&env),
+            sub_invokes: &[],
+        },
+    }]);
+    client.pause();
+}
+
+#[test]
+#[should_panic]
+fn test_unpause_requires_owner_auth() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, OutcomeManagerContract);
+    let client = OutcomeManagerContractClient::new(&env, &contract_id);
+
+    let owner = Address::generate(&env);
+    let attacker = Address::generate(&env);
+    let registry = Address::generate(&env);
+
+    client.initialize(&owner, &registry);
+
+    env.mock_auths(&[MockAuth {
+        address: &owner,
+        invoke: &MockAuthInvoke {
+            contract: &contract_id,
+            fn_name: "pause",
+            args: ().into_val(&env),
+            sub_invokes: &[],
+        },
+    }]);
+    client.pause();
+
+    env.mock_auths(&[MockAuth {
+        address: &attacker,
+        invoke: &MockAuthInvoke {
+            contract: &contract_id,
+            fn_name: "unpause",
+            args: ().into_val(&env),
+            sub_invokes: &[],
+        },
+    }]);
+    client.unpause();
 }

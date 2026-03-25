@@ -8,6 +8,7 @@ const ORACLES: Symbol = symbol_short!("ORACLES");
 const CALLS: Symbol = symbol_short!("CALLS");
 const WITHDRAWALS: Symbol = symbol_short!("WITHDRAW");
 const CALL_REGISTRY: Symbol = symbol_short!("CALL_REG");
+const IS_PAUSED: Symbol = symbol_short!("PAUSED");
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -43,6 +44,21 @@ pub struct OutcomeManagerContract;
 
 #[contractimpl]
 impl OutcomeManagerContract {
+    fn require_owner_auth(env: &Env) {
+        let owner: Address = env.storage().instance().get(&OWNER).unwrap();
+        owner.require_auth();
+    }
+
+    fn is_paused(env: &Env) -> bool {
+        env.storage().persistent().get(&IS_PAUSED).unwrap_or(false)
+    }
+
+    fn assert_not_paused(env: &Env) {
+        if Self::is_paused(env) {
+            panic!("Contract is paused");
+        }
+    }
+
     /// Initialize the contract with owner and call registry address
     pub fn initialize(env: Env, owner: Address, call_registry: Address) {
         let storage = env.storage().instance();
@@ -65,14 +81,31 @@ impl OutcomeManagerContract {
         // Initialize empty withdrawals tracking
         let withdrawals: Map<(u64, Address), bool> = Map::new(&env);
         storage.set(&WITHDRAWALS, &withdrawals);
+
+        // Initialize pause flag in persistent storage
+        env.storage().persistent().set(&IS_PAUSED, &false);
+    }
+
+    /// Pause write operations (owner only)
+    pub fn pause(env: Env) {
+        Self::require_owner_auth(&env);
+        env.storage().persistent().set(&IS_PAUSED, &true);
+    }
+
+    /// Resume write operations (owner only)
+    pub fn unpause(env: Env) {
+        Self::require_owner_auth(&env);
+        env.storage().persistent().set(&IS_PAUSED, &false);
+    }
+
+    pub fn get_is_paused(env: Env) -> bool {
+        Self::is_paused(&env)
     }
 
     /// Set oracle authorization status (owner only)
     pub fn set_oracle(env: Env, oracle: BytesN<32>, authorized: bool) {
         let storage = env.storage().instance();
-        let owner: Address = storage.get(&OWNER).unwrap();
-
-        owner.require_auth();
+        Self::require_owner_auth(&env);
 
         let mut oracles: Map<BytesN<32>, bool> = storage.get(&ORACLES).unwrap();
         oracles.set(oracle.clone(), authorized);
@@ -89,7 +122,7 @@ impl OutcomeManagerContract {
         let storage = env.storage().instance();
         let oracles: Map<BytesN<32>, bool> =
             storage.get(&ORACLES).unwrap_or_else(|| Map::new(&env));
-        oracles.get(oracle).map(|v| v).unwrap_or_else(|| false)
+        oracles.get(oracle).unwrap_or(false)
     }
 
     /// Submit outcome with ed25519 signature verification
@@ -102,6 +135,7 @@ impl OutcomeManagerContract {
         oracle_pubkey: BytesN<32>,
         signature: BytesN<64>,
     ) -> bool {
+        Self::assert_not_paused(&env);
         let storage = env.storage().instance();
 
         // Verify call hasn't been settled
@@ -154,10 +188,7 @@ impl OutcomeManagerContract {
         // Verify signer is an authorized oracle
         let oracles: Map<BytesN<32>, bool> =
             storage.get(&ORACLES).unwrap_or_else(|| Map::new(&env));
-        let is_authorized = oracles
-            .get(oracle_pubkey.clone())
-            .map(|v| v)
-            .unwrap_or_else(|| false);
+        let is_authorized = oracles.get(oracle_pubkey.clone()).unwrap_or(false);
 
         if !is_authorized {
             panic!("Oracle not authorized");
@@ -240,10 +271,7 @@ impl OutcomeManagerContract {
         }
 
         let outcome = call_data.outcome.unwrap();
-        let payout: u128;
-
-        // Calculate payout based on user's side and outcome
-        if user_side == outcome {
+        let payout: u128 = if user_side == outcome {
             // User won - calculate their share
             let winning_tokens = if outcome {
                 call_data.long_tokens
@@ -258,11 +286,11 @@ impl OutcomeManagerContract {
             };
 
             // User gets their stake back + their share of losing side
-            payout = user_stake + ((user_stake * losing_tokens) / winning_tokens);
+            user_stake + ((user_stake * losing_tokens) / winning_tokens)
         } else {
             // User lost - no payout (their stake is already gone)
-            payout = 0;
-        }
+            0
+        };
 
         // Mark withdrawal as done
         let mut new_withdrawals = withdrawals.clone();
@@ -291,10 +319,7 @@ impl OutcomeManagerContract {
         let withdrawals: Map<(u64, Address), bool> =
             storage.get(&WITHDRAWALS).unwrap_or_else(|| Map::new(&env));
 
-        withdrawals
-            .get((call_id, user))
-            .map(|v| v)
-            .unwrap_or_else(|| false)
+        withdrawals.get((call_id, user)).unwrap_or(false)
     }
 }
 
