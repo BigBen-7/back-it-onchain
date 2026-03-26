@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Param, Query, Request, HttpException, HttpStatus } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CallsService } from './calls.service';
 import { Call } from './call.entity';
 
@@ -6,6 +7,7 @@ import { Call } from './call.entity';
 export class CallsController {
   constructor(private readonly callsService: CallsService) { }
 
+  @Throttle({ short: { limit: 5, ttl: 1 * 60000 } })
   @Post()
   create(@Body() createCallDto: Partial<Call>) {
     return this.callsService.create(createCallDto);
@@ -30,6 +32,7 @@ export class CallsController {
     return this.callsService.report(+id, reason);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 1 * 60000 } })
   @Post('ipfs')
   uploadIpfs(@Body() body: any) {
     return this.callsService.uploadIpfs(body);

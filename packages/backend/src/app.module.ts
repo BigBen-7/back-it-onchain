@@ -6,6 +6,10 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
+
 import { User } from './users/user.entity';
 import { Call } from './calls/call.entity';
 import { AuthModule } from './auth/auth.module';
@@ -57,6 +61,15 @@ import { AnalyticsModule } from './analytics/analytics.module';
       inject: [ConfigService],
     }),
     TypeOrmModule.forFeature([User, Call]),
+    ThrottlerModule.forRoot([{
+      name: 'default',
+      ttl: 60000,
+      limit: 100,
+    }, {
+      name: 'short',
+      ttl: 60000,
+      limit: 5,
+    }]),
     AuthModule,
     CallsModule,
     OracleModule,
@@ -68,6 +81,12 @@ import { AnalyticsModule } from './analytics/analytics.module';
     AnalyticsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
+  ],
 })
 export class AppModule { }
