@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import { UserFollows } from './user-follows.entity';
+import { NotificationEventsService } from '../notifications/notification-events.service';
 
 @Injectable()
 export class UsersService {
@@ -11,6 +12,7 @@ export class UsersService {
     private usersRepository: Repository<User>,
     @InjectRepository(UserFollows)
     private userFollowsRepository: Repository<UserFollows>,
+    private notificationEventsService: NotificationEventsService,
   ) {}
 
   async findByWallet(wallet: string): Promise<User | null> {
@@ -64,6 +66,16 @@ export class UsersService {
       followingWallet,
     });
     await this.userFollowsRepository.save(follow);
+
+    const followerUser = await this.usersRepository.findOne({
+      where: { wallet: followerWallet },
+    });
+    this.notificationEventsService.emitNewFollower({
+      follower: followerWallet,
+      followerHandle: followerUser?.handle ?? undefined,
+      followerAvatar: followerUser?.avatarCid ?? undefined,
+      followedWallet: followingWallet,
+    });
   }
 
   async unfollow(

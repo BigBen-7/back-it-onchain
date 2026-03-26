@@ -8,12 +8,14 @@ import { AuthService } from '../auth/auth.service';
 import { RpcExhaustedError, withRetry } from '../common/rpc/rpc-retry.util';
 import { Retryable } from '../decorators/retryable.decorator';
 import { PlatformSettings } from './platform-settings.entity';
+import { NotificationEventsService } from '../notifications/notification-events.service';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const CALL_REGISTRY_ABI = [
   'event CallCreated(uint256 indexed callId, address indexed creator, address stakeToken, uint256 stakeAmount, uint256 startTs, uint256 endTs, address tokenAddress, bytes32 pairId, string ipfsCID)',
   'event StakeAdded(uint256 indexed callId, address indexed staker, bool position, uint256 amount)',
+  'event CallResolved(uint256 indexed callId, bool outcome, uint256 finalPrice)',
   'event AdminParamsChanged(uint256 feePercent)',
 ];
 
@@ -42,6 +44,7 @@ export class IndexerService implements OnModuleInit {
     @InjectRepository(PlatformSettings)
     private settingsRepository: Repository<PlatformSettings>,
     private authService: AuthService,
+    private notificationEventsService: NotificationEventsService,
   ) {
     const rpcUrl = this.configService.get<string>('BASE_SEPOLIA_RPC_URL');
     this.registryAddress =
@@ -137,15 +140,17 @@ export class IndexerService implements OnModuleInit {
       const currentBlock = await this.getBlockNumber();
 
       // queryFilter is already wrapped with @Retryable above
-      const [callCreatedEvents, stakeAddedEvents, adminParamsEvents] = await Promise.all([
+      const [callCreatedEvents, stakeAddedEvents, callResolvedEvents, adminParamsEvents] = await Promise.all([
         this.queryFilter(contract, 'CallCreated', 0, currentBlock),
         this.queryFilter(contract, 'StakeAdded', 0, currentBlock),
+        this.queryFilter(contract, 'CallResolved', 0, currentBlock),
         this.queryFilter(contract, 'AdminParamsChanged', 0, currentBlock),
       ]);
 
       this.logger.log(
         `Found ${callCreatedEvents.length} historical CallCreated events, ` +
-        `${stakeAddedEvents.length} StakeAdded events, and ` +
+        `${stakeAddedEvents.length} StakeAdded events, ` +
+        `${callResolvedEvents.length} CallResolved events, and ` +
         `${adminParamsEvents.length} AdminParamsChanged events`,
       );
 
@@ -163,9 +168,18 @@ export class IndexerService implements OnModuleInit {
       for (const event of stakeAddedEvents) {
         if (event.args) {
           const a = event.args;
+          // emitNotification=false: don't flood users with historical stake notifications
           await this.handleStakeAdded(
-            a[0] as bigint, a[1] as string, a[2] as boolean, a[3] as bigint,
+            a[0] as bigint, a[1] as string, a[2] as boolean, a[3] as bigint, false,
           );
+        }
+      }
+
+      for (const event of callResolvedEvents) {
+        if (event.args) {
+          const a = event.args;
+          // emitNotification=false: don't notify for historical resolutions
+          await this.handleCallResolved(a[0] as bigint, a[1] as boolean, a[2] as bigint, false);
         }
       }
 
@@ -245,6 +259,7 @@ export class IndexerService implements OnModuleInit {
     staker: string,
     position: boolean,
     amount: bigint,
+    emitNotification = true,
   ): Promise<void> {
     this.logger.log(
       `Processing StakeAdded to Call ${callId}: ` +
@@ -262,7 +277,8 @@ export class IndexerService implements OnModuleInit {
       return;
     }
 
-    const amountNum = Number(ethers.formatUnits(amount, 18));
+    const amountFormatted = ethers.formatUnits(amount, 18);
+    const amountNum = Number(amountFormatted);
     if (position) {
       call.totalStakeYes = Number(call.totalStakeYes) + amountNum;
     } else {
@@ -270,6 +286,51 @@ export class IndexerService implements OnModuleInit {
     }
 
     await this.callsRepository.save(call);
+
+    if (emitNotification) {
+      this.notificationEventsService.emitStakeReceived({
+        callId: Number(callId),
+        callTitle: call.title || call.tokenAddress,
+        staker,
+        amount: amountFormatted,
+        choice: position ? 'yes' : 'no',
+        creatorWallet: call.creatorWallet,
+      });
+    }
+  }
+
+  async handleCallResolved(
+    callId: bigint,
+    outcome: boolean,
+    finalPrice: bigint,
+    emitNotification = true,
+  ): Promise<void> {
+    this.logger.log(`Processing CallResolved: ${callId}, outcome=${outcome}`);
+
+    const call = await this.callsRepository.findOne({
+      where: { callOnchainId: callId.toString() },
+    });
+
+    if (!call) {
+      this.logger.warn(`CallResolved for unknown Call ${callId} — skipping`);
+      return;
+    }
+
+    call.status = 'RESOLVED';
+    call.outcome = outcome;
+    call.finalPrice = Number(ethers.formatUnits(finalPrice, 18));
+    await this.callsRepository.save(call);
+
+    if (emitNotification) {
+      this.notificationEventsService.emitMarketResolved({
+        callId: Number(callId),
+        callTitle: call.title || call.tokenAddress,
+        outcome: outcome ? 'yes' : 'no',
+        creatorWallet: call.creatorWallet,
+        // Individual staker tracking is not yet in the DB; creator is notified via the listener.
+        stakers: [],
+      });
+    }
   }
 
   async handleAdminParamsChanged(feePercent: bigint): Promise<void> {
@@ -405,6 +466,16 @@ export class IndexerService implements OnModuleInit {
         void this.handleStakeAdded(callId, staker, position, amount).catch(
           (err: Error) =>
             this.logger.error(`Error handling live StakeAdded: ${err.message}`),
+        );
+      },
+    );
+
+    void contract.on(
+      'CallResolved',
+      (callId: bigint, outcome: boolean, finalPrice: bigint) => {
+        void this.handleCallResolved(callId, outcome, finalPrice).catch(
+          (err: Error) =>
+            this.logger.error(`Error handling live CallResolved: ${err.message}`),
         );
       },
     );
