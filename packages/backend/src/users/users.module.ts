@@ -8,6 +8,10 @@ import { BadgesModule } from '../badges/badges.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User, UserFollows]), BadgesModule],
+import { NotificationsModule } from '../notifications/notifications.module';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([User, UserFollows]), NotificationsModule],
   providers: [UsersService],
   controllers: [UsersController],
   exports: [UsersService],

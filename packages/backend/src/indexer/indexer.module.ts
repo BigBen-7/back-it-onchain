@@ -6,9 +6,10 @@ import { IndexerController } from './indexer.controller';
 import { Call } from '../calls/call.entity';
 import { PlatformSettings } from './platform-settings.entity';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [ConfigModule, AuthModule, TypeOrmModule.forFeature([Call, PlatformSettings])],
+  imports: [ConfigModule, AuthModule, TypeOrmModule.forFeature([Call, PlatformSettings]), NotificationsModule],
   providers: [IndexerService],
   controllers: [IndexerController],
 })

@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CacheModule } from '@nestjs/cache-manager';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { User } from './users/user.entity';
@@ -20,11 +21,26 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { PlatformSettings } from './indexer/platform-settings.entity';
 import { BadgesModule } from './badges/badges.module';
 import { UserBadge } from './badges/badge.entity';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => {
+        const redisUrl = configService.get<string>('REDIS_URL');
+        if (redisUrl) {
+          const KeyvRedis = (await import('@keyv/redis')).default;
+          return { stores: [new KeyvRedis(redisUrl)] };
+        }
+        // Fall back to in-memory store when REDIS_URL is not configured
+        return {};
+      },
+      inject: [ConfigService],
     }),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
@@ -52,6 +68,7 @@ import { UserBadge } from './badges/badge.entity';
     NotificationsModule,
     LeaderboardModule,
     BadgesModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
