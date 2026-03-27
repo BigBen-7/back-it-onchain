@@ -8,6 +8,7 @@ import { AuthService } from '../auth/auth.service';
 import { RpcExhaustedError, withRetry } from '../common/rpc/rpc-retry.util';
 import { Retryable } from '../decorators/retryable.decorator';
 import { PlatformSettings } from './platform-settings.entity';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationEventsService } from '../notifications/notification-events.service';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ export class IndexerService implements OnModuleInit {
     @InjectRepository(PlatformSettings)
     private settingsRepository: Repository<PlatformSettings>,
     private authService: AuthService,
+    private eventEmitter: EventEmitter2,
     private notificationEventsService: NotificationEventsService,
   ) {
     const rpcUrl = this.configService.get<string>('BASE_SEPOLIA_RPC_URL');
@@ -252,6 +254,11 @@ export class IndexerService implements OnModuleInit {
 
     await this.callsRepository.save(call);
     this.logger.log(`Saved Call ${callId} to database`);
+
+    this.eventEmitter.emit('call.created', {
+      callId: callId.toString(),
+      creatorWallet: creator,
+    });
   }
 
   async handleStakeAdded(

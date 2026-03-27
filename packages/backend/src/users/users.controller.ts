@@ -8,10 +8,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { BadgesService } from '../badges/badges.service';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly badgesService: BadgesService,
+  ) {}
 
   @Get(':wallet')
   async getUser(@Param('wallet') wallet: string) {
@@ -19,7 +23,8 @@ export class UsersController {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return user;
+    const badges = await this.badgesService.getUserBadges(wallet);
+    return { ...user, badges };
   }
 
   @Patch(':wallet')
