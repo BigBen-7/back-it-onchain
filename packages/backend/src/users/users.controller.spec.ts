@@ -1,20 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { BadgesService } from '../badges/badges.service';
 
 describe('UsersController', () => {
   let controller: UsersController;
   let service: UsersService;
+  let badges: BadgesService;
 
   const mockUsersService = {
-    getProfile: jest.fn(),
+    findByWallet: jest.fn(),
     updateProfile: jest.fn(),
   };
 
-  const mockRequest = {
-    user: {
-      id: 'user-123',
-    },
+  const mockBadgesService = {
+    getUserBadges: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -25,65 +25,64 @@ describe('UsersController', () => {
           provide: UsersService,
           useValue: mockUsersService,
         },
+        {
+          provide: BadgesService,
+          useValue: mockBadgesService,
+        },
       ],
     }).compile();
 
     controller = module.get<UsersController>(UsersController);
     service = module.get<UsersService>(UsersService);
+    badges = module.get<BadgesService>(BadgesService);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  // -----------------------------
-  // GET PROFILE
-  // -----------------------------
-  describe('getProfile', () => {
-    it('should return user profile successfully', async () => {
-      const mockProfile = {
-        id: 'user-123',
-        name: 'Elisha',
-        email: 'elisha@test.com',
+  describe('getUser', () => {
+    it('should return user profile with badges successfully', async () => {
+      const mockUser = {
+        wallet: 'user-123',
+        handle: 'elisha',
       };
+      const mockBadges = [{ id: 1, name: 'First Call' }];
 
-      mockUsersService.getProfile.mockResolvedValue(mockProfile);
+      mockUsersService.findByWallet.mockResolvedValue(mockUser);
+      mockBadgesService.getUserBadges.mockResolvedValue(mockBadges);
 
-      const result = await controller.getProfile(mockRequest as any);
+      const result = await controller.getUser('user-123');
 
-      expect(service.getProfile).toHaveBeenCalledWith('user-123');
-      expect(result).toEqual(mockProfile);
+      expect(service.findByWallet).toHaveBeenCalledWith('user-123');
+      expect(badges.getUserBadges).toHaveBeenCalledWith('user-123');
+      expect(result).toEqual({ ...mockUser, badges: mockBadges });
     });
 
-    it('should throw error if service fails', async () => {
-      mockUsersService.getProfile.mockRejectedValue(
-        new Error('User not found'),
-      );
+    it('should throw error if user not found', async () => {
+      mockUsersService.findByWallet.mockResolvedValue(null);
 
       await expect(
-        controller.getProfile(mockRequest as any),
+        controller.getUser('user-999'),
       ).rejects.toThrow('User not found');
     });
   });
 
-  // -----------------------------
-  // UPDATE PROFILE
-  // -----------------------------
   describe('updateProfile', () => {
     it('should update profile successfully', async () => {
       const updateDto = {
-        name: 'Updated Name',
+        displayName: 'Updated Name',
       };
 
       const updatedUser = {
-        id: 'user-123',
-        name: 'Updated Name',
+        wallet: 'user-123',
+        displayName: 'Updated Name',
       };
 
       mockUsersService.updateProfile.mockResolvedValue(updatedUser);
 
       const result = await controller.updateProfile(
-        mockRequest as any,
+        'user-123',
         updateDto,
       );
 
@@ -95,14 +94,14 @@ describe('UsersController', () => {
     });
 
     it('should throw error if update fails', async () => {
-      const updateDto = { name: 'Bad Update' };
+      const updateDto = { displayName: 'Bad Update' };
 
       mockUsersService.updateProfile.mockRejectedValue(
         new Error('Update failed'),
       );
 
       await expect(
-        controller.updateProfile(mockRequest as any, updateDto),
+        controller.updateProfile('user-123', updateDto),
       ).rejects.toThrow('Update failed');
     });
   });
