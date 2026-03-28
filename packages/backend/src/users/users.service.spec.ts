@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { User } from './user.entity';
 import { UserFollows } from './user-follows.entity';
 import { Repository } from 'typeorm';
@@ -31,6 +32,15 @@ describe('UsersService', () => {
     emitNewFollower: jest.fn(),
   };
 
+  /** Minimal DataSource mock — only the methods used by exportHistory */
+  const mockDataSource = {
+    createQueryRunner: jest.fn().mockReturnValue({
+      connect: jest.fn().mockResolvedValue(undefined),
+      stream: jest.fn().mockResolvedValue({ on: jest.fn(), pipe: jest.fn() }),
+      release: jest.fn().mockResolvedValue(undefined),
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -46,6 +56,10 @@ describe('UsersService', () => {
         {
           provide: NotificationEventsService,
           useValue: mockNotificationService,
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();

@@ -6,8 +6,12 @@ import {
   Param,
   Body,
   NotFoundException,
+  Query,
+  Res,
+  BadRequestException,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
+import { Response } from 'express';
+import { UsersService, ExportFormat } from './users.service';
 import { BadgesService } from '../badges/badges.service';
 
 @Controller('users')
@@ -16,6 +20,55 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly badgesService: BadgesService,
   ) {}
+
+  /**
+   * GET /users/me/export-history?format=csv&wallet=<address>
+   *
+   * Streams the authenticated user's full prediction history.
+   *
+   * Query params:
+   *   wallet  - The user's wallet address (until JWT guard wires up `req.user`)
+   *   format  - 'csv' (default) or 'json'
+   *
+   * CSV columns: Call ID, Title, Chain, Status, Position, Stake YES, Stake NO,
+   *              Outcome, Final Price, PnL, Start, End, Created At
+   *
+   * The response is streamed directly — no in-memory buffering.
+   */
+  @Get('me/export-history')
+  async exportHistory(
+    @Query('wallet') wallet: string,
+    @Query('format') format: string = 'csv',
+    @Res() res: Response,
+  ) {
+    if (!wallet) {
+      throw new BadRequestException('wallet query parameter is required');
+    }
+
+    const fmt = (format === 'json' ? 'json' : 'csv') as ExportFormat;
+    const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const filename = `history-${wallet.slice(0, 8)}-${timestamp}.${fmt}`;
+
+    if (fmt === 'json') {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    } else {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    }
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    const stream = await this.usersService.exportHistory(wallet, fmt);
+
+    stream.on('error', (err) => {
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Export failed', error: err.message });
+      } else {
+        res.end();
+      }
+    });
+
+    stream.pipe(res);
+  }
 
   @Get(':wallet')
   async getUser(@Param('wallet') wallet: string) {
