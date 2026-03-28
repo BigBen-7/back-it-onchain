@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { UserFollows } from './user-follows.entity';
-import { Repository } from 'typeorm';
+import { UserSettings } from './user-settings.entity';
 import { ConflictException } from '@nestjs/common';
 import { NotificationEventsService } from '../notifications/notification-events.service';
 
@@ -12,6 +12,7 @@ describe('UsersService', () => {
   let service: UsersService;
   let usersRepo: jest.Mocked<Repository<User>>;
   let followsRepo: jest.Mocked<Repository<UserFollows>>;
+  let settingsRepo: jest.Mocked<Partial<Repository<UserSettings>>>;
 
   const mockUsersRepo = () => ({
     findOne: jest.fn(),
@@ -26,6 +27,12 @@ describe('UsersService', () => {
     create: jest.fn(),
     delete: jest.fn(),
     count: jest.fn(),
+  });
+
+  const mockSettingsRepo = () => ({
+    findOne: jest.fn().mockResolvedValue(null),
+    create: jest.fn(),
+    save: jest.fn().mockResolvedValue({}),
   });
 
   const mockNotificationService = {
@@ -54,6 +61,10 @@ describe('UsersService', () => {
           useFactory: mockFollowsRepo,
         },
         {
+          provide: getRepositoryToken(UserSettings),
+          useFactory: mockSettingsRepo,
+        },
+        {
           provide: NotificationEventsService,
           useValue: mockNotificationService,
         },
@@ -67,6 +78,7 @@ describe('UsersService', () => {
     service = module.get<UsersService>(UsersService);
     usersRepo = module.get(getRepositoryToken(User));
     followsRepo = module.get(getRepositoryToken(UserFollows));
+    settingsRepo = module.get(getRepositoryToken(UserSettings));
   });
 
   describe('findByWallet (findOneByAddress)', () => {

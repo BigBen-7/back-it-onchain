@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { User, ChainType } from '../users/user.entity';
+import { UserSettings } from '../users/user-settings.entity';
 import { ethers } from 'ethers';
 import { Keypair, StrKey } from '@stellar/stellar-sdk';
 import nacl from 'tweetnacl';
@@ -24,6 +25,8 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(UserSettings)
+    private userSettingsRepository: Repository<UserSettings>,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -56,6 +59,10 @@ export class AuthService {
         referredByWallet: referrer?.wallet,
       });
       await this.usersRepository.save(user);
+
+      // Provision default settings for every new account
+      const settings = this.userSettingsRepository.create({ wallet });
+      await this.userSettingsRepository.save(settings);
     } else if (user.chain !== chain) {
       // Update chain if user switches chains
       user.chain = chain;

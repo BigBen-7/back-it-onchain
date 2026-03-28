@@ -13,6 +13,7 @@ import {
 import { Response } from 'express';
 import { UsersService, ExportFormat } from './users.service';
 import { BadgesService } from '../badges/badges.service';
+import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
 
 @Controller('users')
 export class UsersController {
@@ -68,6 +69,39 @@ export class UsersController {
     });
 
     stream.pipe(res);
+  }
+
+  /**
+   * GET /users/me/settings?wallet=<address>
+   *
+   * Returns the current user's preferences and settings.
+   * Creates a default row on first access for pre-existing accounts.
+   */
+  @Get('me/settings')
+  async getSettings(@Query('wallet') wallet: string) {
+    if (!wallet) {
+      throw new BadRequestException('wallet query parameter is required');
+    }
+    return this.usersService.getSettings(wallet);
+  }
+
+  /**
+   * PATCH /users/me/settings?wallet=<address>
+   *
+   * Partially updates the user's settings (true PATCH — only supplied
+   * fields are written; everything else is left unchanged).
+   *
+   * Send `emailAddress: null` to explicitly clear the stored email.
+   */
+  @Patch('me/settings')
+  async updateSettings(
+    @Query('wallet') wallet: string,
+    @Body() dto: UpdateUserSettingsDto,
+  ) {
+    if (!wallet) {
+      throw new BadRequestException('wallet query parameter is required');
+    }
+    return this.usersService.upsertSettings(wallet, dto);
   }
 
   @Get(':wallet')

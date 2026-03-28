@@ -6,6 +6,7 @@ import { UnauthorizedException } from '@nestjs/common';
 
 import { AuthService, JwtPayload } from './auth.service';
 import { User, ChainType } from '../users/user.entity';
+import { UserSettings } from '../users/user-settings.entity';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -28,15 +29,25 @@ function mockRepository(): jest.Mocked<Partial<Repository<User>>> {
   };
 }
 
+function mockSettingsRepository(): jest.Mocked<Partial<Repository<UserSettings>>> {
+  return {
+    findOne: jest.fn().mockResolvedValue(null), // no existing settings
+    create: jest.fn(),
+    save: jest.fn().mockResolvedValue({}),
+  };
+}
+
 // ─── Test Suite ──────────────────────────────────────────────────────────────
 
 describe('AuthService', () => {
   let service: AuthService;
   let jwtService: JwtService;
   let usersRepo: jest.Mocked<Partial<Repository<User>>>;
+  let settingsRepo: jest.Mocked<Partial<Repository<UserSettings>>>;
 
   beforeEach(async () => {
     usersRepo = mockRepository();
+    settingsRepo = mockSettingsRepository();
 
     const module: TestingModule = await Test.createTestingModule({
       imports: [
@@ -50,6 +61,10 @@ describe('AuthService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: usersRepo,
+        },
+        {
+          provide: getRepositoryToken(UserSettings),
+          useValue: settingsRepo,
         },
       ],
     }).compile();
@@ -202,6 +217,7 @@ describe('AuthService', () => {
         providers: [
           AuthService,
           { provide: getRepositoryToken(User), useValue: usersRepo },
+          { provide: getRepositoryToken(UserSettings), useValue: settingsRepo },
         ],
       }).compile();
 

@@ -1,10 +1,12 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Readable } from 'stream';
 import { stringify } from 'csv-stringify';
 import { User } from './user.entity';
 import { UserFollows } from './user-follows.entity';
+import { UserSettings } from './user-settings.entity';
+import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
 import { NotificationEventsService } from '../notifications/notification-events.service';
 
 export type ExportFormat = 'csv' | 'json';
@@ -35,6 +37,8 @@ export class UsersService {
     private usersRepository: Repository<User>,
     @InjectRepository(UserFollows)
     private userFollowsRepository: Repository<UserFollows>,
+    @InjectRepository(UserSettings)
+    private userSettingsRepository: Repository<UserSettings>,
     private notificationEventsService: NotificationEventsService,
     private dataSource: DataSource,
   ) {}
@@ -164,6 +168,62 @@ export class UsersService {
       where: { followerWallet, followingWallet },
     });
     return count > 0;
+  }
+
+  // ─── User settings ─────────────────────────────────────────────────────────
+
+  /**
+   * Creates a UserSettings row with all defaults for a newly registered user.
+   * Idempotent — silently skips if a row already exists.
+   */
+  async createDefaultSettings(wallet: string): Promise<UserSettings> {
+    const existing = await this.userSettingsRepository.findOne({ where: { wallet } });
+    if (existing) return existing;
+
+    const settings = this.userSettingsRepository.create({ wallet });
+    return this.userSettingsRepository.save(settings);
+  }
+
+  /**
+   * Returns the settings row for the given wallet.
+   * Creates one with defaults first if it doesn't exist yet (safe for
+   * accounts that pre-date this feature).
+   */
+  async getSettings(wallet: string): Promise<UserSettings> {
+    const settings = await this.userSettingsRepository.findOne({ where: { wallet } });
+    if (settings) return settings;
+
+    // Back-fill default settings for pre-existing accounts
+    return this.createDefaultSettings(wallet);
+  }
+
+  /**
+   * Partially updates the settings row.  Only keys present in the DTO are
+   * written — undefined keys are left untouched (true PATCH semantics).
+   * `emailAddress: null` explicitly clears the stored email.
+   */
+  async upsertSettings(
+    wallet: string,
+    dto: UpdateUserSettingsDto,
+  ): Promise<UserSettings> {
+    const user = await this.usersRepository.findOne({ where: { wallet } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Ensure the row exists before patching
+    let settings = await this.userSettingsRepository.findOne({ where: { wallet } });
+    if (!settings) {
+      settings = await this.createDefaultSettings(wallet);
+    }
+
+    // Only assign keys that were explicitly supplied in the request body
+    const updatable = Object.fromEntries(
+      Object.entries(dto).filter(([, v]) => v !== undefined),
+    );
+    Object.assign(settings, updatable);
+
+    return this.userSettingsRepository.save(settings);
   }
 
   // ─── Export history ────────────────────────────────────────────────────────

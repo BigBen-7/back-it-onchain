@@ -18,6 +18,7 @@ import { OracleModule } from './oracle/oracle.module';
 import { IndexerModule } from './indexer/indexer.module';
 import { UsersModule } from './users/users.module';
 import { UserFollows } from './users/user-follows.entity';
+import { UserSettings } from './users/user-settings.entity';
 import { FeedModule } from './feed/feed.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { Notification } from './notifications/notification.entity';
@@ -58,7 +59,7 @@ import { UploadsModule } from './uploads/uploads.module';
         username: configService.get<string>('DB_USERNAME', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgres'),
         database: configService.get<string>('DB_DATABASE', 'back_it_onchain'),
-        entities: [User, Call, UserFollows, Notification, PlatformSettings, UserBadge],
+        entities: [User, Call, UserFollows, UserSettings, Notification, PlatformSettings, UserBadge],
         synchronize: true,
       }),
       inject: [ConfigService],
