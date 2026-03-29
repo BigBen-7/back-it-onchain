@@ -325,9 +325,8 @@ impl OutcomeManagerContract {
         // Load existing votes for this call
         let mut all_votes: Map<u64, Vec<OracleVote>> =
             storage.get(&VOTES).unwrap_or_else(|| Map::new(&env));
-        let mut call_votes: Vec<OracleVote> = all_votes
-            .get(call_id)
-            .unwrap_or_else(|| Vec::new(&env));
+        let mut call_votes: Vec<OracleVote> =
+            all_votes.get(call_id).unwrap_or_else(|| Vec::new(&env));
 
         // Check this oracle hasn't already voted on this call
         for i in 0..call_votes.len() {
@@ -402,9 +401,7 @@ impl OutcomeManagerContract {
         let storage = env.storage().instance();
         let all_votes: Map<u64, Vec<OracleVote>> =
             storage.get(&VOTES).unwrap_or_else(|| Map::new(&env));
-        all_votes
-            .get(call_id)
-            .unwrap_or_else(|| Vec::new(&env))
+        all_votes.get(call_id).unwrap_or_else(|| Vec::new(&env))
     }
 
     /// Register a call (called by CallRegistry or stake contract)

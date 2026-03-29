@@ -1,6 +1,8 @@
 #![cfg(test)]
 
-use crate::{CallData, OracleVote, OutcomeManagerContract, OutcomeManagerContractClient, CALLS, VOTES};
+use crate::{
+    CallData, OracleVote, OutcomeManagerContract, OutcomeManagerContractClient, CALLS, VOTES,
+};
 use soroban_sdk::{
     testutils::{Address as _, MockAuth, MockAuthInvoke},
     token, Address, BytesN, Env, IntoVal, Map, Vec,
@@ -231,8 +233,7 @@ fn test_quorum_accumulates_votes_and_settles() {
         env.storage().instance().set(&VOTES, &all_votes);
 
         // Simulate quorum settlement
-        let mut calls: Map<u64, CallData> =
-            env.storage().instance().get(&CALLS).unwrap();
+        let mut calls: Map<u64, CallData> = env.storage().instance().get(&CALLS).unwrap();
         let mut call_data = calls.get(call_id).unwrap();
         call_data.settled = true;
         call_data.outcome = Some(true);
