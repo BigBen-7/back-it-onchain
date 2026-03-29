@@ -1,9 +1,34 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { Readable } from 'stream';
+import { stringify } from 'csv-stringify';
 import { User } from './user.entity';
 import { UserFollows } from './user-follows.entity';
+import { UserSettings } from './user-settings.entity';
+import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
 import { NotificationEventsService } from '../notifications/notification-events.service';
+
+export type ExportFormat = 'csv' | 'json';
+
+/** One row in the exported history. */
+export interface HistoryRow {
+  call_id: string;
+  title: string;
+  chain: string;
+  status: string;
+  /** 'yes' = user backed, 'no' = user challenged */
+  position: string;
+  stake_yes: string;
+  stake_no: string;
+  outcome: string;
+  final_price: string;
+  /** Estimated PnL based on pool-proportional payout model */
+  pnl: string;
+  start_ts: string;
+  end_ts: string;
+  created_at: string;
+}
 
 @Injectable()
 export class UsersService {
@@ -12,7 +37,10 @@ export class UsersService {
     private usersRepository: Repository<User>,
     @InjectRepository(UserFollows)
     private userFollowsRepository: Repository<UserFollows>,
+    @InjectRepository(UserSettings)
+    private userSettingsRepository: Repository<UserSettings>,
     private notificationEventsService: NotificationEventsService,
+    private dataSource: DataSource,
   ) {}
 
   async create(data: {
@@ -140,5 +168,188 @@ export class UsersService {
       where: { followerWallet, followingWallet },
     });
     return count > 0;
+  }
+
+  // ─── User settings ─────────────────────────────────────────────────────────
+
+  /**
+   * Creates a UserSettings row with all defaults for a newly registered user.
+   * Idempotent — silently skips if a row already exists.
+   */
+  async createDefaultSettings(wallet: string): Promise<UserSettings> {
+    const existing = await this.userSettingsRepository.findOne({ where: { wallet } });
+    if (existing) return existing;
+
+    const settings = this.userSettingsRepository.create({ wallet });
+    return this.userSettingsRepository.save(settings);
+  }
+
+  /**
+   * Returns the settings row for the given wallet.
+   * Creates one with defaults first if it doesn't exist yet (safe for
+   * accounts that pre-date this feature).
+   */
+  async getSettings(wallet: string): Promise<UserSettings> {
+    const settings = await this.userSettingsRepository.findOne({ where: { wallet } });
+    if (settings) return settings;
+
+    // Back-fill default settings for pre-existing accounts
+    return this.createDefaultSettings(wallet);
+  }
+
+  /**
+   * Partially updates the settings row.  Only keys present in the DTO are
+   * written — undefined keys are left untouched (true PATCH semantics).
+   * `emailAddress: null` explicitly clears the stored email.
+   */
+  async upsertSettings(
+    wallet: string,
+    dto: UpdateUserSettingsDto,
+  ): Promise<UserSettings> {
+    const user = await this.usersRepository.findOne({ where: { wallet } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Ensure the row exists before patching
+    let settings = await this.userSettingsRepository.findOne({ where: { wallet } });
+    if (!settings) {
+      settings = await this.createDefaultSettings(wallet);
+    }
+
+    // Only assign keys that were explicitly supplied in the request body
+    const updatable = Object.fromEntries(
+      Object.entries(dto).filter(([, v]) => v !== undefined),
+    );
+    Object.assign(settings, updatable);
+
+    return this.userSettingsRepository.save(settings);
+  }
+
+  // ─── Export history ────────────────────────────────────────────────────────
+
+  /**
+   * Streams the user's prediction history as either CSV or JSON.
+   *
+   * Uses a raw SQL cursor via QueryRunner to avoid loading all rows into
+   * memory at once — safe for users with thousands of stakes/calls.
+   *
+   * PnL model (mirrors the on-chain formula):
+   *   - Creator always backs "YES" (they created the call).
+   *   - If outcome = true  (YES wins):  pnl = totalStakeNo   (profit from losers)
+   *   - If outcome = false (NO  wins):  pnl = -totalStakeYes (lost their backing)
+   *   - If unresolved:                  pnl = 0
+   */
+  async exportHistory(wallet: string, format: ExportFormat): Promise<Readable> {
+    // PostgreSQL streams rows via QueryRunner — no full result materialised
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+
+    const SQL = `
+      SELECT
+        c.id::text                              AS call_id,
+        COALESCE(c.condition_json->>'title', c.ipfs_cid, '')   AS title,
+        c.chain,
+        c.status,
+        'yes'                                   AS position,
+        c.total_stake_yes::text                 AS stake_yes,
+        c.total_stake_no::text                  AS stake_no,
+        CASE
+          WHEN c.outcome IS NULL THEN 'pending'
+          WHEN c.outcome = true  THEN 'YES'
+          ELSE 'NO'
+        END                                     AS outcome,
+        COALESCE(c.final_price::text, '')       AS final_price,
+        CASE
+          WHEN c.outcome IS NULL                    THEN '0'
+          WHEN c.outcome = true                     THEN c.total_stake_no::text
+          ELSE ('-' || c.total_stake_yes::text)
+        END                                     AS pnl,
+        c.start_ts::text,
+        c.end_ts::text,
+        c.created_at::text
+      FROM "call" c
+      WHERE c.creator_wallet = $1
+        AND c.is_hidden = false
+      ORDER BY c.created_at DESC
+    `;
+
+    // pg-level stream — yields one row object at a time
+    const pgStream = await queryRunner.stream(SQL, [wallet]);
+
+    if (format === 'json') {
+      return this.toJsonStream(pgStream, queryRunner);
+    }
+
+    return this.toCsvStream(pgStream, queryRunner);
+  }
+
+  // ─── Private stream helpers ────────────────────────────────────────────────
+
+  /**
+   * Wraps the pg row stream in a JSON array stream.
+   * Emits: `[\n`, then `{...},\n` per row, then `]\n`.
+   */
+  private toJsonStream(pgStream: Readable, queryRunner: import('typeorm').QueryRunner): Readable {
+    let first = true;
+    const output = new Readable({ read() {} });
+
+    output.push('[\n');
+
+    pgStream.on('data', (row: Record<string, unknown>) => {
+      const prefix = first ? '  ' : ',\n  ';
+      first = false;
+      output.push(prefix + JSON.stringify(row));
+    });
+
+    pgStream.on('end', () => {
+      output.push('\n]\n');
+      output.push(null); // signal EOF
+      void queryRunner.release();
+    });
+
+    pgStream.on('error', (err) => {
+      output.destroy(err);
+      void queryRunner.release();
+    });
+
+    return output;
+  }
+
+  /**
+   * Pipes the pg row stream through csv-stringify's transform stream.
+   * The first row's keys become the CSV header.
+   */
+  private toCsvStream(pgStream: Readable, queryRunner: import('typeorm').QueryRunner): Readable {
+    const csvTransform = stringify({
+      header: true,
+      columns: [
+        { key: 'call_id',     header: 'Call ID' },
+        { key: 'title',       header: 'Title' },
+        { key: 'chain',       header: 'Chain' },
+        { key: 'status',      header: 'Status' },
+        { key: 'position',    header: 'Position' },
+        { key: 'stake_yes',   header: 'Stake YES' },
+        { key: 'stake_no',    header: 'Stake NO' },
+        { key: 'outcome',     header: 'Outcome' },
+        { key: 'final_price', header: 'Final Price' },
+        { key: 'pnl',         header: 'PnL' },
+        { key: 'start_ts',    header: 'Start' },
+        { key: 'end_ts',      header: 'End' },
+        { key: 'created_at',  header: 'Created At' },
+      ],
+    });
+
+    pgStream.pipe(csvTransform);
+
+    pgStream.on('error', (err) => {
+      csvTransform.destroy(err);
+      void queryRunner.release();
+    });
+
+    csvTransform.on('end', () => void queryRunner.release());
+    csvTransform.on('error', () => void queryRunner.release());
+
+    return csvTransform as unknown as Readable;
   }
 }
