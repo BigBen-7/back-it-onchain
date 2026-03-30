@@ -1,7 +1,7 @@
 #![no_std]
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, token, Address, Bytes, BytesN, Env, Map,
-    Symbol,
+    Symbol, Vec,
 };
 
 const OWNER: Symbol = symbol_short!("OWNER");
@@ -15,6 +15,9 @@ const ORACLE_BONDS: Symbol = symbol_short!("ORBONDS");
 const CALL_ORACLES: Symbol = symbol_short!("CLLORCL");
 const ORACLE_BOND_TOKEN: Symbol = symbol_short!("ORBTOKEN");
 const SLASHED_CALLS: Symbol = symbol_short!("SLSHCALL");
+const QUORUM_NUM: Symbol = symbol_short!("Q_NUM");
+const QUORUM_DEN: Symbol = symbol_short!("Q_DEN");
+const VOTES: Symbol = symbol_short!("VOTES");
 
 const BASIS_POINTS_DENOMINATOR: i128 = 10_000;
 
@@ -46,11 +49,30 @@ pub struct FeeConfig {
     pub treasury: Address,
 }
 
+/// A single oracle vote for a call outcome.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct OracleVote {
+    pub oracle: BytesN<32>,
+    pub outcome: bool,
+    pub final_price: u128,
+    pub timestamp: u64,
+}
+
+/// Quorum configuration: numerator / denominator (e.g. 2/3).
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuorumConfig {
+    pub numerator: u32,
+    pub denominator: u32,
+}
+
 #[contracttype]
 #[derive(Clone)]
 pub enum Event {
     OutcomeSubmitted(u64, bool, u128, BytesN<32>),
     OutcomeOverturned(u64, bool, u128),
+    CallSettled(u64, bool, u128),
     PayoutWithdrawn(u64, Address, u128),
     OracleUpdated(BytesN<32>, bool),
     OracleBondDeposited(BytesN<32>, u128),
@@ -103,6 +125,22 @@ impl OutcomeManagerContract {
             .expect("Oracle bond token not set")
     }
 
+    /// Count the total number of currently authorized oracles.
+    fn count_authorized_oracles(env: &Env) -> u32 {
+        let oracles: Map<BytesN<32>, bool> = env
+            .storage()
+            .instance()
+            .get(&ORACLES)
+            .unwrap_or_else(|| Map::new(env));
+        let mut count = 0u32;
+        for (_key, val) in oracles.iter() {
+            if val {
+                count += 1;
+            }
+        }
+        count
+    }
+
     /// Initialize the contract with owner and call registry address
     pub fn initialize(env: Env, owner: Address, call_registry: Address) {
         let storage = env.storage().instance();
@@ -138,6 +176,10 @@ impl OutcomeManagerContract {
         let slashed_calls: Map<u64, bool> = Map::new(&env);
         storage.set(&SLASHED_CALLS, &slashed_calls);
 
+        // Initialize empty oracle votes
+        let votes: Map<u64, Vec<OracleVote>> = Map::new(&env);
+        storage.set(&VOTES, &votes);
+
         // Initialize pause flag in persistent storage
         env.storage().persistent().set(&IS_PAUSED, &false);
 
@@ -148,6 +190,10 @@ impl OutcomeManagerContract {
                 treasury: owner,
             },
         );
+
+        // Default quorum: 2/3
+        env.storage().persistent().set(&QUORUM_NUM, &2u32);
+        env.storage().persistent().set(&QUORUM_DEN, &3u32);
     }
 
     pub fn set_fee_config(env: Env, basis_points: u32, treasury: Address) {
@@ -177,6 +223,30 @@ impl OutcomeManagerContract {
 
     pub fn get_oracle_bond_token_view(env: Env) -> Option<Address> {
         env.storage().persistent().get(&ORACLE_BOND_TOKEN)
+    }
+
+    /// Set the quorum threshold as a fraction (numerator / denominator).
+    /// E.g. set_quorum_threshold(2, 3) means 2/3 of authorized oracles must agree.
+    pub fn set_quorum_threshold(env: Env, numerator: u32, denominator: u32) {
+        Self::require_owner_auth(&env);
+        if denominator == 0 {
+            panic!("Denominator cannot be zero");
+        }
+        if numerator == 0 || numerator > denominator {
+            panic!("Numerator must be in range [1, denominator]");
+        }
+        env.storage().persistent().set(&QUORUM_NUM, &numerator);
+        env.storage().persistent().set(&QUORUM_DEN, &denominator);
+    }
+
+    /// Get the current quorum threshold.
+    pub fn get_quorum_threshold(env: Env) -> QuorumConfig {
+        let numerator: u32 = env.storage().persistent().get(&QUORUM_NUM).unwrap_or(2);
+        let denominator: u32 = env.storage().persistent().get(&QUORUM_DEN).unwrap_or(3);
+        QuorumConfig {
+            numerator,
+            denominator,
+        }
     }
 
     /// Pause write operations (owner only)
@@ -265,7 +335,11 @@ impl OutcomeManagerContract {
         oracles.get(oracle).unwrap_or(false)
     }
 
-    /// Submit outcome with ed25519 signature verification
+    /// Submit an oracle vote for a call outcome.
+    ///
+    /// Accumulates unique authorized oracle signatures. Once the quorum
+    /// threshold of oracles agree on the same outcome, the call moves to
+    /// Settled status. Returns `true` if this submission triggered settlement.
     pub fn submit_outcome(
         env: Env,
         call_id: u64,
@@ -278,8 +352,8 @@ impl OutcomeManagerContract {
         Self::assert_not_paused(&env);
         let storage = env.storage().instance();
 
-        // Verify call hasn't been settled
-        let mut calls: Map<u64, CallData> = storage.get(&CALLS).unwrap_or_else(|| Map::new(&env));
+        // Verify call exists and hasn't been settled
+        let calls: Map<u64, CallData> = storage.get(&CALLS).unwrap_or_else(|| Map::new(&env));
 
         if let Some(call_data) = calls.get(call_id) {
             if call_data.settled {
@@ -340,26 +414,91 @@ impl OutcomeManagerContract {
             panic!("Oracle bond required");
         }
 
-        // Mark call as settled
-        let mut call_data = calls.get(call_id).unwrap();
-        call_data.settled = true;
-        call_data.outcome = Some(outcome);
-        call_data.final_price = Some(final_price);
-        calls.set(call_id, call_data);
-        storage.set(&CALLS, &calls);
+        // Load existing votes for this call
+        let mut all_votes: Map<u64, Vec<OracleVote>> =
+            storage.get(&VOTES).unwrap_or_else(|| Map::new(&env));
+        let mut call_votes: Vec<OracleVote> =
+            all_votes.get(call_id).unwrap_or_else(|| Vec::new(&env));
 
-        let mut call_oracles: Map<u64, BytesN<32>> =
-            storage.get(&CALL_ORACLES).unwrap_or_else(|| Map::new(&env));
-        call_oracles.set(call_id, oracle_pubkey.clone());
-        storage.set(&CALL_ORACLES, &call_oracles);
+        // Check this oracle hasn't already voted on this call
+        for i in 0..call_votes.len() {
+            let existing = call_votes.get(i).unwrap();
+            if existing.oracle == oracle_pubkey {
+                panic!("Oracle already voted on this call");
+            }
+        }
 
-        // Emit event
+        // Record the vote
+        let vote = OracleVote {
+            oracle: oracle_pubkey.clone(),
+            outcome,
+            final_price,
+            timestamp,
+        };
+        call_votes.push_back(vote);
+        all_votes.set(call_id, call_votes.clone());
+        storage.set(&VOTES, &all_votes);
+
+        // Emit per-oracle vote event
         env.events().publish(
             (Symbol::new(&env, "outcome_submitted"),),
-            Event::OutcomeSubmitted(call_id, outcome, final_price, oracle_pubkey),
+            Event::OutcomeSubmitted(call_id, outcome, final_price, oracle_pubkey.clone()),
         );
 
-        true
+        // Check if quorum is met for this outcome
+        let quorum_num: u32 = env.storage().persistent().get(&QUORUM_NUM).unwrap_or(2);
+        let quorum_den: u32 = env.storage().persistent().get(&QUORUM_DEN).unwrap_or(3);
+        let total_oracles = Self::count_authorized_oracles(&env);
+
+        // Required votes = ceil(total_oracles * numerator / denominator)
+        let required = (total_oracles * quorum_num).div_ceil(quorum_den);
+
+        // Count votes agreeing on this specific outcome
+        let mut agreeing: u32 = 0;
+        let mut price_sum: u128 = 0;
+        for i in 0..call_votes.len() {
+            let v = call_votes.get(i).unwrap();
+            if v.outcome == outcome {
+                agreeing += 1;
+                price_sum += v.final_price;
+            }
+        }
+
+        if agreeing >= required && required > 0 {
+            // Quorum reached — settle the call with average price from agreeing oracles
+            let avg_price = price_sum / (agreeing as u128);
+
+            let mut calls_mut: Map<u64, CallData> =
+                storage.get(&CALLS).unwrap_or_else(|| Map::new(&env));
+            let mut call_data = calls_mut.get(call_id).unwrap();
+            call_data.settled = true;
+            call_data.outcome = Some(outcome);
+            call_data.final_price = Some(avg_price);
+            calls_mut.set(call_id, call_data);
+            storage.set(&CALLS, &calls_mut);
+
+            let mut call_oracles: Map<u64, BytesN<32>> =
+                storage.get(&CALL_ORACLES).unwrap_or_else(|| Map::new(&env));
+            call_oracles.set(call_id, oracle_pubkey.clone());
+            storage.set(&CALL_ORACLES, &call_oracles);
+
+            env.events().publish(
+                (Symbol::new(&env, "call_settled"),),
+                Event::CallSettled(call_id, outcome, avg_price),
+            );
+
+            return true;
+        }
+
+        false
+    }
+
+    /// Get all oracle votes for a call.
+    pub fn get_oracle_votes(env: Env, call_id: u64) -> Vec<OracleVote> {
+        let storage = env.storage().instance();
+        let all_votes: Map<u64, Vec<OracleVote>> =
+            storage.get(&VOTES).unwrap_or_else(|| Map::new(&env));
+        all_votes.get(call_id).unwrap_or_else(|| Vec::new(&env))
     }
 
     pub fn overturn_outcome_by_majority(
