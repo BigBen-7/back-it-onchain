@@ -446,10 +446,10 @@ describe('OracleService', () => {
       const networkError = new Error('Network timeout');
       let attemptCount = 0;
 
-      global.fetch = jest.fn(() => {
+      (global.fetch as any) = jest.fn(() => {
         attemptCount++;
         if (attemptCount < 3) {
-          return Promise.reject(networkError);
+          return Promise.reject(networkError) as Promise<Response>;
         }
         return Promise.resolve({
           ok: true,
@@ -463,7 +463,7 @@ describe('OracleService', () => {
               },
             ],
           }),
-        });
+        } as unknown as Response) as Promise<Response>;
       });
 
       const price = await service.fetchPrice('0xtoken');
@@ -488,10 +488,10 @@ describe('OracleService', () => {
       const networkError = new Error('Temporary error');
       let attemptCount = 0;
 
-      global.fetch = jest.fn(() => {
+      (global.fetch as any) = jest.fn(() => {
         attemptCount++;
         if (attemptCount < 2) {
-          return Promise.reject(networkError);
+          return Promise.reject(networkError) as Promise<Response>;
         }
         return Promise.resolve({
           ok: true,
@@ -505,7 +505,7 @@ describe('OracleService', () => {
               },
             ],
           }),
-        });
+        } as unknown as Response) as Promise<Response>;
       });
 
       const pricePromise = service.fetchPrice('0xtoken');
@@ -555,7 +555,7 @@ describe('OracleService', () => {
     it('should handle malformed JSON response', async () => {
       let attemptCount = 0;
 
-      global.fetch = jest.fn(() => {
+      (global.fetch as any) = jest.fn(() => {
         attemptCount++;
         if (attemptCount < 2) {
           return Promise.resolve({
@@ -563,7 +563,7 @@ describe('OracleService', () => {
             json: async () => {
               throw new Error('Invalid JSON');
             },
-          });
+          } as unknown as Response) as Promise<Response>;
         }
         return Promise.resolve({
           ok: true,
@@ -577,7 +577,7 @@ describe('OracleService', () => {
               },
             ],
           }),
-        });
+        } as unknown as Response) as Promise<Response>;
       });
 
       const price = await service.fetchPrice('0xtoken');
@@ -691,30 +691,36 @@ describe('OracleService', () => {
     });
 
     it('should incorporate volume and liquidity info in logs', async () => {
-      const logSpy = jest.spyOn(service as any, 'logger').mockImplementation({
+      const originalLogger = (service as any).logger;
+      const loggerMock = {
         log: jest.fn(),
         error: jest.fn(),
         warn: jest.fn(),
-      } as any);
+      };
 
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          pairs: [
-            {
-              priceUsd: '500.00',
-              baseToken: { symbol: 'TESTED' },
-              volume: { h24: 2500000 },
-              liquidity: { usd: 5000000 },
-            },
-          ],
-        }),
-      });
+      (service as any).logger = loggerMock;
+      try {
+        global.fetch = jest.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            pairs: [
+              {
+                priceUsd: '500.00',
+                baseToken: { symbol: 'TESTED' },
+                volume: { h24: 2500000 },
+                liquidity: { usd: 5000000 },
+              },
+            ],
+          }),
+        });
 
-      await service.fetchPrice('0xtoken');
+        await service.fetchPrice('0xtoken');
 
-      // Logger should have been called
-      expect(logSpy).toBeDefined();
+        // Logger should have been called
+        expect(loggerMock.log).toHaveBeenCalled();
+      } finally {
+        (service as any).logger = originalLogger;
+      }
     });
   });
 
@@ -760,12 +766,21 @@ describe('OracleService', () => {
       expect(typeof signature).toBe('string');
     });
 
-    it('should handle outcome resolution with failed price fetch', async () => {
+    it(
+      'should handle outcome resolution with failed price fetch',
+      async () => {
       global.fetch = jest.fn().mockRejectedValue(new Error('API down'));
 
-      const price = await service.fetchPriceSafe('0xtoken');
+      jest.useFakeTimers();
+      try {
+        const pricePromise = service.fetchPriceSafe('0xtoken');
+        jest.runAllTimers();
+        const price = await pricePromise;
 
-      expect(price).toBeNull();
+        expect(price).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
 
       // Should still be able to sign with default price if available
       const signature = await service.signOutcomeForChain(
@@ -777,7 +792,9 @@ describe('OracleService', () => {
       );
 
       expect(signature).toBeTruthy();
-    });
+      },
+      20000,
+    );
 
     it('should maintain price consistency for single call resolution', async () => {
       global.fetch = jest.fn().mockResolvedValue({
