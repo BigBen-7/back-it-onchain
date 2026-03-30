@@ -322,7 +322,7 @@ describe('Database Integrity (Schema Drift Detection)', () => {
           if (relation.relationType === 'many-to-one') {
             const joinColumn = entity.columns.find(
               (col) =>
-                col.relationMetadata?.relationName === relation.propertyName,
+                col.relationMetadata?.propertyName === relation.propertyName,
             );
 
             if (joinColumn) {
