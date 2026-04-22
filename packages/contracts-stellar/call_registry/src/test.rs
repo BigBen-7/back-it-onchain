@@ -16,8 +16,7 @@ fn setup_env() -> (Env, Address, Address, Address, Address) {
     client.initialize(&admin);
 
     let stake_token_admin = Address::generate(&env);
-    let stake_token_contract =
-        env.register_stellar_asset_contract_v2(stake_token_admin.clone());
+    let stake_token_contract = env.register_stellar_asset_contract_v2(stake_token_admin.clone());
     let stake_token = stake_token_contract.address();
     let stake_token_admin_client = token::StellarAssetClient::new(&env, &stake_token);
 
@@ -57,7 +56,13 @@ fn test_create_call() {
     stake_token_admin_client.mint(&creator, &1000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     assert_eq!(call_id, 0);
     let call = client.get_call(&call_id);
@@ -99,7 +104,13 @@ fn test_stake_on_call() {
     stake_token_admin_client.mint(&staker, &1000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     client.stake_on_call(&call_id, &staker, &1000, &false);
 
@@ -150,7 +161,13 @@ fn test_stake_ended_call() {
     stake_token_admin_client.mint(&staker, &1000);
 
     let end_ts = env.ledger().timestamp() + 100;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
     env.ledger().set_timestamp(end_ts + 1);
     client.stake_on_call(&call_id, &staker, &50, &false);
 }
@@ -197,7 +214,13 @@ fn test_pause_unpause_flow() {
     stake_token_admin_client.mint(&staker, &1000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     client.pause();
     assert!(client.get_is_paused());
@@ -315,7 +338,13 @@ fn test_stake_applies_surge_fee() {
     stake_token_admin_client.mint(&staker, &10_000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     // participant_count = 1 → fee_bps = 50; stake 10_000 → fee = 5, net = 9_995
     client.stake_on_call(&call_id, &staker, &10_000, &false);
@@ -346,7 +375,13 @@ fn test_get_fee_basis_points() {
     stake_token_admin_client.mint(&creator, &1000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     // 1 participant → 50 bp
     assert_eq!(client.get_fee_basis_points(&call_id), 50);
@@ -374,7 +409,13 @@ fn test_distribute_dividends() {
     stake_token_admin_client.mint(&staker, &10_000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     // Stake to generate fees: 10_000 * 50bp / 10_000 = 5 fee
     client.stake_on_call(&call_id, &staker, &10_000, &false);
