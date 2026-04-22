@@ -6,10 +6,14 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 
 @Entity()
+@Index('IDX_call_status', ['status'])
+@Index('IDX_call_end_ts', ['endTs'])
+@Index('IDX_call_creator_wallet', ['creatorWallet'])
 export class Call {
   @PrimaryGeneratedColumn()
   id: number;
