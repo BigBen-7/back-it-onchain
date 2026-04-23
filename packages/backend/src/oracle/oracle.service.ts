@@ -6,11 +6,11 @@ import { Keypair } from '@stellar/stellar-sdk';
 // ─── Retry configuration ────────────────────────────────────────────────────
 
 interface RetryOptions {
-  maxAttempts?: number;   // total attempts including the first call (default: 4)
-  baseDelayMs?: number;   // initial backoff in ms                   (default: 1000)
-  factor?: number;        // exponential growth factor               (default: 2)
-  maxDelayMs?: number;    // ceiling on any single delay             (default: 30_000)
-  jitter?: number;        // ±fraction of delay to randomise         (default: 0.2)
+  maxAttempts?: number; // total attempts including the first call (default: 4)
+  baseDelayMs?: number; // initial backoff in ms                   (default: 1000)
+  factor?: number; // exponential growth factor               (default: 2)
+  maxDelayMs?: number; // ceiling on any single delay             (default: 30_000)
+  jitter?: number; // ±fraction of delay to randomise         (default: 0.2)
   operationName?: string; // label used in log lines
 }
 
@@ -61,8 +61,14 @@ async function withRetry<T>(
 
       if (attempt === maxAttempts) break;
 
-      const raw = Math.min(baseDelayMs * Math.pow(factor, attempt - 1), maxDelayMs);
-      const delay = Math.max(0, Math.round(raw + raw * jitter * (Math.random() * 2 - 1)));
+      const raw = Math.min(
+        baseDelayMs * Math.pow(factor, attempt - 1),
+        maxDelayMs,
+      );
+      const delay = Math.max(
+        0,
+        Math.round(raw + raw * jitter * (Math.random() * 2 - 1)),
+      );
 
       logger?.warn(
         `[${operationName}] attempt ${attempt}/${maxAttempts} failed — ` +
@@ -100,14 +106,21 @@ export function Retryable(optionsOrAttempts: number | RetryOptions) {
     propertyKey: string,
     descriptor: PropertyDescriptor,
   ): PropertyDescriptor {
-    const original = descriptor.value as (...args: unknown[]) => Promise<unknown>;
+    const original = descriptor.value as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
     const className = target.constructor?.name ?? 'Unknown';
-    const operationName = options.operationName ?? `${className}.${propertyKey}`;
+    const operationName =
+      options.operationName ?? `${className}.${propertyKey}`;
 
     descriptor.value = async function (...args: unknown[]) {
       // Use the instance logger if available (NestJS services have this.logger)
       const logger: Logger | undefined = (this as { logger?: Logger }).logger;
-      return withRetry(() => original.apply(this, args), { ...options, operationName }, logger);
+      return withRetry(
+        () => original.apply(this, args),
+        { ...options, operationName },
+        logger,
+      );
     };
 
     Object.defineProperty(descriptor.value, 'name', { value: propertyKey });
@@ -200,7 +213,9 @@ export class OracleService {
 
     const pair = data?.pairs?.[0];
     if (!pair?.priceUsd) {
-      throw new Error(`No price data returned by DexScreener for ${tokenAddress}`);
+      throw new Error(
+        `No price data returned by DexScreener for ${tokenAddress}`,
+      );
     }
 
     const price = parseFloat(pair.priceUsd);
@@ -314,7 +329,12 @@ export class OracleService {
     timestamp: number,
   ): Promise<string> {
     if (chain === 'stellar') {
-      const signature = this.signStellarOutcome(callId, outcome, finalPrice, timestamp);
+      const signature = this.signStellarOutcome(
+        callId,
+        outcome,
+        finalPrice,
+        timestamp,
+      );
       return signature.toString('base64');
     }
 

@@ -30,7 +30,11 @@ function useFakeTimers() {
  * `advanceTime` drains pending fake timers after each awaited tick so that
  * the retry sleep never blocks the test.
  */
-function makeFlakySpy<T>(failTimes: number, value: T, error = new Error('transient')) {
+function makeFlakySpy<T>(
+  failTimes: number,
+  value: T,
+  error = new Error('transient'),
+) {
   let calls = 0;
   return jest.fn(async () => {
     calls += 1;
@@ -66,7 +70,9 @@ describe('RpcExhaustedError', () => {
   });
 
   it('should be an instance of Error', () => {
-    expect(new RpcExhaustedError('op', 1, new Error('x'))).toBeInstanceOf(Error);
+    expect(new RpcExhaustedError('op', 1, new Error('x'))).toBeInstanceOf(
+      Error,
+    );
   });
 
   it('should embed operation, attempts and lastError in the message', () => {
@@ -88,7 +94,9 @@ describe('RpcExhaustedError', () => {
 
 describe('RpcNonRetryableError', () => {
   it('should have the correct name', () => {
-    expect(new RpcNonRetryableError('bad request').name).toBe('RpcNonRetryableError');
+    expect(new RpcNonRetryableError('bad request').name).toBe(
+      'RpcNonRetryableError',
+    );
   });
 
   it('should be an instance of Error', () => {
@@ -155,7 +163,11 @@ describe('withRetry', () => {
 
     it('should call fn exactly maxAttempts times', async () => {
       const fn = jest.fn().mockRejectedValue(new Error('err'));
-      await runWithAutoAdvance(fn, { maxAttempts: 3, baseDelayMs: 0, jitter: 0 }).catch(() => {});
+      await runWithAutoAdvance(fn, {
+        maxAttempts: 3,
+        baseDelayMs: 0,
+        jitter: 0,
+      }).catch(() => {});
       expect(fn).toHaveBeenCalledTimes(3);
     });
 
@@ -181,7 +193,9 @@ describe('withRetry', () => {
 
     it('should use the default maxAttempts of 4 when not specified', async () => {
       const fn = jest.fn().mockRejectedValue(new Error('err'));
-      await runWithAutoAdvance(fn, { baseDelayMs: 0, jitter: 0 }).catch(() => {});
+      await runWithAutoAdvance(fn, { baseDelayMs: 0, jitter: 0 }).catch(
+        () => {},
+      );
       expect(fn).toHaveBeenCalledTimes(4);
     });
   });
@@ -199,7 +213,9 @@ describe('withRetry', () => {
     });
 
     it('should preserve the RpcNonRetryableError message', async () => {
-      const fn = jest.fn().mockRejectedValue(new RpcNonRetryableError('bad input'));
+      const fn = jest
+        .fn()
+        .mockRejectedValue(new RpcNonRetryableError('bad input'));
       await expect(withRetry(fn, { baseDelayMs: 0 })).rejects.toMatchObject({
         message: 'bad input',
       });
@@ -287,7 +303,9 @@ describe('createRetryFn', () => {
     const retry = createRetryFn({ maxAttempts: 5, baseDelayMs: 0, jitter: 0 });
     const promise = retry(fn, { maxAttempts: 2, baseDelayMs: 0, jitter: 0 });
     const settled = { value: false };
-    promise.then(() => (settled.value = true)).catch(() => (settled.value = true));
+    promise
+      .then(() => (settled.value = true))
+      .catch(() => (settled.value = true));
     while (!settled.value) {
       await Promise.resolve();
       jest.runAllTimers();
@@ -313,11 +331,15 @@ describe('defaultSorobanIsRetryable', () => {
   });
 
   it('should return true for an error containing "rate limit"', () => {
-    expect(defaultSorobanIsRetryable(new Error('rate limit exceeded'))).toBe(true);
+    expect(defaultSorobanIsRetryable(new Error('rate limit exceeded'))).toBe(
+      true,
+    );
   });
 
   it('should return true for an error containing "too many requests"', () => {
-    expect(defaultSorobanIsRetryable(new Error('too many requests'))).toBe(true);
+    expect(defaultSorobanIsRetryable(new Error('too many requests'))).toBe(
+      true,
+    );
   });
 
   // Client errors (4xx except 408 / 425 / 429) → non-retryable
@@ -326,7 +348,9 @@ describe('defaultSorobanIsRetryable', () => {
   });
 
   it('should return false for a 401 Unauthorized error', () => {
-    expect(defaultSorobanIsRetryable(new Error('401 Unauthorized'))).toBe(false);
+    expect(defaultSorobanIsRetryable(new Error('401 Unauthorized'))).toBe(
+      false,
+    );
   });
 
   it('should return false for a 403 Forbidden error', () => {
@@ -338,12 +362,16 @@ describe('defaultSorobanIsRetryable', () => {
   });
 
   it('should return false for a 422 Unprocessable Entity error', () => {
-    expect(defaultSorobanIsRetryable(new Error('422 Unprocessable Entity'))).toBe(false);
+    expect(
+      defaultSorobanIsRetryable(new Error('422 Unprocessable Entity')),
+    ).toBe(false);
   });
 
   // 408 Request Timeout and 425 Too Early are retryable even though they're 4xx
   it('should return true for a 408 Request Timeout error', () => {
-    expect(defaultSorobanIsRetryable(new Error('408 Request Timeout'))).toBe(true);
+    expect(defaultSorobanIsRetryable(new Error('408 Request Timeout'))).toBe(
+      true,
+    );
   });
 
   it('should return true for a 425 Too Early error', () => {
@@ -352,11 +380,15 @@ describe('defaultSorobanIsRetryable', () => {
 
   // Network / 5xx → retryable
   it('should return true for a 500 Internal Server Error', () => {
-    expect(defaultSorobanIsRetryable(new Error('500 Internal Server Error'))).toBe(true);
+    expect(
+      defaultSorobanIsRetryable(new Error('500 Internal Server Error')),
+    ).toBe(true);
   });
 
   it('should return true for a 503 Service Unavailable error', () => {
-    expect(defaultSorobanIsRetryable(new Error('503 Service Unavailable'))).toBe(true);
+    expect(
+      defaultSorobanIsRetryable(new Error('503 Service Unavailable')),
+    ).toBe(true);
   });
 
   it('should return true for a generic network error', () => {
@@ -364,15 +396,23 @@ describe('defaultSorobanIsRetryable', () => {
   });
 
   it('should return true for a timeout error', () => {
-    expect(defaultSorobanIsRetryable(new Error('connection timed out'))).toBe(true);
+    expect(defaultSorobanIsRetryable(new Error('connection timed out'))).toBe(
+      true,
+    );
   });
 
   it('should return true for an unknown error (fail-safe)', () => {
-    expect(defaultSorobanIsRetryable(new Error('something unexpected'))).toBe(true);
+    expect(defaultSorobanIsRetryable(new Error('something unexpected'))).toBe(
+      true,
+    );
   });
 
   it('should be case-insensitive', () => {
-    expect(defaultSorobanIsRetryable(new Error('HTTP 400 BAD REQUEST'))).toBe(false);
-    expect(defaultSorobanIsRetryable(new Error('RATE LIMIT EXCEEDED'))).toBe(true);
+    expect(defaultSorobanIsRetryable(new Error('HTTP 400 BAD REQUEST'))).toBe(
+      false,
+    );
+    expect(defaultSorobanIsRetryable(new Error('RATE LIMIT EXCEEDED'))).toBe(
+      true,
+    );
   });
 });

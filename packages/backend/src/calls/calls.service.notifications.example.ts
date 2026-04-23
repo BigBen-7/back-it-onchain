@@ -1,6 +1,6 @@
 /**
  * EXAMPLE: Integrating Notifications with Calls Service
- * 
+ *
  * This file shows how to update your calls.service.ts to emit notifications
  */
 

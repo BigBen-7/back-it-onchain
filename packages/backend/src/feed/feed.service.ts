@@ -153,4 +153,3 @@ export class FeedService {
     return trending;
   }
 }
-

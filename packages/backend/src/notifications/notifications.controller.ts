@@ -13,10 +13,9 @@ import {
 import { NotificationsService } from './notifications.service';
 import { Notification } from './notification.entity';
 
-
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) { }
+  constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
   async getNotifications(

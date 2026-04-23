@@ -80,7 +80,9 @@ describe('LeaderboardService', () => {
       await service.getLeaderboard(LeaderboardPeriod.WEEKLY);
 
       expect(repo.find).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { period: LeaderboardPeriod.WEEKLY } }),
+        expect.objectContaining({
+          where: { period: LeaderboardPeriod.WEEKLY },
+        }),
       );
     });
 
@@ -123,7 +125,9 @@ describe('LeaderboardService', () => {
     });
 
     it('works with WEEKLY period', async () => {
-      repo.find.mockResolvedValue([mockEntry({ period: LeaderboardPeriod.WEEKLY })]);
+      repo.find.mockResolvedValue([
+        mockEntry({ period: LeaderboardPeriod.WEEKLY }),
+      ]);
 
       const result = await service.getLeaderboard(LeaderboardPeriod.WEEKLY);
 
@@ -131,7 +135,9 @@ describe('LeaderboardService', () => {
     });
 
     it('works with ALL_TIME period', async () => {
-      repo.find.mockResolvedValue([mockEntry({ period: LeaderboardPeriod.ALL_TIME })]);
+      repo.find.mockResolvedValue([
+        mockEntry({ period: LeaderboardPeriod.ALL_TIME }),
+      ]);
 
       const result = await service.getLeaderboard(LeaderboardPeriod.ALL_TIME);
 
@@ -226,41 +232,58 @@ describe('LeaderboardAggregationJob', () => {
   // -------------------------------------------------------------------------
   describe('rank assignment', () => {
     const setupTransaction = () => {
-      dataSource.transaction.mockImplementation(async (cb: (manager: any) => Promise<void>) => {
-        const manager = {
-          delete: jest.fn().mockResolvedValue(undefined),
-          save: jest.fn().mockResolvedValue(undefined),
-        };
-        await cb(manager);
-        return manager;
-      });
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: any) => Promise<void>) => {
+          const manager = {
+            delete: jest.fn().mockResolvedValue(undefined),
+            save: jest.fn().mockResolvedValue(undefined),
+          };
+          await cb(manager);
+          return manager;
+        },
+      );
     };
 
     it('assigns rank 1 to the first SQL row (highest win_rate)', async () => {
       setupTransaction();
-      dataSource.query.mockResolvedValueOnce([
-        mockAggRow({ user_id: '0xALICE', win_rate: '90.00', profit: '1000' }),
-        mockAggRow({ user_id: '0xBOB',   win_rate: '60.00', profit: '200' }),
-      ]).mockResolvedValueOnce([]);
+      dataSource.query
+        .mockResolvedValueOnce([
+          mockAggRow({ user_id: '0xALICE', win_rate: '90.00', profit: '1000' }),
+          mockAggRow({ user_id: '0xBOB', win_rate: '60.00', profit: '200' }),
+        ])
+        .mockResolvedValueOnce([]);
 
       await job.aggregateAll();
 
-      const savedEntries: Leaderboard[] = dataSource.transaction.mock.calls[0][0]
+      const savedEntries: Leaderboard[] = dataSource.transaction.mock
+        .calls[0][0]
         ? await (async () => {
             let captured: Leaderboard[] = [];
             dataSource.transaction.mockImplementationOnce(async (cb: any) => {
               const manager = {
                 delete: jest.fn(),
-                save: jest.fn().mockImplementation((_entity: any, entries: Leaderboard[]) => {
-                  captured = entries;
-                }),
+                save: jest
+                  .fn()
+                  .mockImplementation(
+                    (_entity: any, entries: Leaderboard[]) => {
+                      captured = entries;
+                    },
+                  ),
               };
               await cb(manager);
             });
             dataSource.query
               .mockResolvedValueOnce([
-                mockAggRow({ user_id: '0xALICE', win_rate: '90.00', profit: '1000' }),
-                mockAggRow({ user_id: '0xBOB',   win_rate: '60.00', profit: '200' }),
+                mockAggRow({
+                  user_id: '0xALICE',
+                  win_rate: '90.00',
+                  profit: '1000',
+                }),
+                mockAggRow({
+                  user_id: '0xBOB',
+                  win_rate: '60.00',
+                  profit: '200',
+                }),
               ])
               .mockResolvedValueOnce([]);
             await job.aggregateAll();
@@ -281,17 +304,21 @@ describe('LeaderboardAggregationJob', () => {
 
       let capturedEntries: Leaderboard[] = [];
       dataSource.query
-        .mockResolvedValueOnce(rows)  // ALL_TIME
-        .mockResolvedValueOnce([]);   // WEEKLY
-      dataSource.transaction.mockImplementation(async (cb: (manager: any) => Promise<void>) => {
-        const manager = {
-          delete: jest.fn().mockResolvedValue(undefined),
-          save: jest.fn().mockImplementation((_: any, entries: Leaderboard[]) => {
-            capturedEntries = entries;
-          }),
-        };
-        await cb(manager);
-      });
+        .mockResolvedValueOnce(rows) // ALL_TIME
+        .mockResolvedValueOnce([]); // WEEKLY
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: any) => Promise<void>) => {
+          const manager = {
+            delete: jest.fn().mockResolvedValue(undefined),
+            save: jest
+              .fn()
+              .mockImplementation((_: any, entries: Leaderboard[]) => {
+                capturedEntries = entries;
+              }),
+          };
+          await cb(manager);
+        },
+      );
 
       await job.aggregateAll();
 
@@ -305,15 +332,19 @@ describe('LeaderboardAggregationJob', () => {
       dataSource.query
         .mockResolvedValueOnce([mockAggRow({ user_id: '0xALICE' })])
         .mockResolvedValueOnce([]);
-      dataSource.transaction.mockImplementation(async (cb: (manager: any) => Promise<void>) => {
-        const manager = {
-          delete: jest.fn().mockResolvedValue(undefined),
-          save: jest.fn().mockImplementation((_: any, entries: Leaderboard[]) => {
-            capturedEntries = entries;
-          }),
-        };
-        await cb(manager);
-      });
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: any) => Promise<void>) => {
+          const manager = {
+            delete: jest.fn().mockResolvedValue(undefined),
+            save: jest
+              .fn()
+              .mockImplementation((_: any, entries: Leaderboard[]) => {
+                capturedEntries = entries;
+              }),
+          };
+          await cb(manager);
+        },
+      );
 
       await job.aggregateAll();
 
@@ -339,15 +370,19 @@ describe('LeaderboardAggregationJob', () => {
           }),
         ])
         .mockResolvedValueOnce([]);
-      dataSource.transaction.mockImplementation(async (cb: (manager: any) => Promise<void>) => {
-        const manager = {
-          delete: jest.fn().mockResolvedValue(undefined),
-          save: jest.fn().mockImplementation((_: any, entries: Leaderboard[]) => {
-            capturedEntries = entries;
-          }),
-        };
-        await cb(manager);
-      });
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: any) => Promise<void>) => {
+          const manager = {
+            delete: jest.fn().mockResolvedValue(undefined),
+            save: jest
+              .fn()
+              .mockImplementation((_: any, entries: Leaderboard[]) => {
+                capturedEntries = entries;
+              }),
+          };
+          await cb(manager);
+        },
+      );
       await job.aggregateAll();
     });
 
@@ -379,9 +414,10 @@ describe('LeaderboardAggregationJob', () => {
       dataSource.query.mockResolvedValue([]);
       await job.aggregateAll();
 
-      const allTimeSql: string = dataSource.query.mock.calls.find(
-        ([sql]: [string]) => !sql.includes(`'7 days'`),
-      )?.[0] ?? '';
+      const allTimeSql: string =
+        dataSource.query.mock.calls.find(
+          ([sql]: [string]) => !sql.includes(`'7 days'`),
+        )?.[0] ?? '';
 
       expect(allTimeSql).toMatch(/ORDER BY win_rate DESC,\s*profit DESC/i);
     });
@@ -390,9 +426,10 @@ describe('LeaderboardAggregationJob', () => {
       dataSource.query.mockResolvedValue([]);
       await job.aggregateAll();
 
-      const weeklySql: string = dataSource.query.mock.calls.find(
-        ([sql]: [string]) => sql.includes(`'7 days'`),
-      )?.[0] ?? '';
+      const weeklySql: string =
+        dataSource.query.mock.calls.find(([sql]: [string]) =>
+          sql.includes(`'7 days'`),
+        )?.[0] ?? '';
 
       expect(weeklySql).toMatch(/ORDER BY win_rate DESC,\s*profit DESC/i);
     });
@@ -402,24 +439,28 @@ describe('LeaderboardAggregationJob', () => {
       let capturedEntries: Leaderboard[] = [];
       dataSource.query
         .mockResolvedValueOnce([
-          mockAggRow({ user_id: '0xTOP',    win_rate: '95.00', profit: '2000' }),
+          mockAggRow({ user_id: '0xTOP', win_rate: '95.00', profit: '2000' }),
           mockAggRow({ user_id: '0xMIDDLE', win_rate: '60.00', profit: '800' }),
           mockAggRow({ user_id: '0xBOTTOM', win_rate: '20.00', profit: '100' }),
         ])
         .mockResolvedValueOnce([]);
-      dataSource.transaction.mockImplementation(async (cb: (manager: any) => Promise<void>) => {
-        const manager = {
-          delete: jest.fn().mockResolvedValue(undefined),
-          save: jest.fn().mockImplementation((_: any, entries: Leaderboard[]) => {
-            capturedEntries = entries;
-          }),
-        };
-        await cb(manager);
-      });
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: any) => Promise<void>) => {
+          const manager = {
+            delete: jest.fn().mockResolvedValue(undefined),
+            save: jest
+              .fn()
+              .mockImplementation((_: any, entries: Leaderboard[]) => {
+                capturedEntries = entries;
+              }),
+          };
+          await cb(manager);
+        },
+      );
 
       await job.aggregateAll();
 
-      const top    = capturedEntries.find((e) => e.userId === '0xTOP')!;
+      const top = capturedEntries.find((e) => e.userId === '0xTOP')!;
       const middle = capturedEntries.find((e) => e.userId === '0xMIDDLE')!;
       const bottom = capturedEntries.find((e) => e.userId === '0xBOTTOM')!;
 
@@ -436,15 +477,19 @@ describe('LeaderboardAggregationJob', () => {
           mockAggRow({ user_id: '0xPOOR', win_rate: '50.00', profit: '1' }),
         ])
         .mockResolvedValueOnce([]);
-      dataSource.transaction.mockImplementation(async (cb: (manager: any) => Promise<void>) => {
-        const manager = {
-          delete: jest.fn().mockResolvedValue(undefined),
-          save: jest.fn().mockImplementation((_: any, entries: Leaderboard[]) => {
-            capturedEntries = entries;
-          }),
-        };
-        await cb(manager);
-      });
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: any) => Promise<void>) => {
+          const manager = {
+            delete: jest.fn().mockResolvedValue(undefined),
+            save: jest
+              .fn()
+              .mockImplementation((_: any, entries: Leaderboard[]) => {
+                capturedEntries = entries;
+              }),
+          };
+          await cb(manager);
+        },
+      );
 
       await job.aggregateAll();
 
@@ -463,9 +508,10 @@ describe('LeaderboardAggregationJob', () => {
       dataSource.query.mockResolvedValue([]);
       await job.aggregateAll();
 
-      const weeklySql: string = dataSource.query.mock.calls.find(
-        ([sql]: [string]) => sql.includes(`'7 days'`),
-      )?.[0] ?? '';
+      const weeklySql: string =
+        dataSource.query.mock.calls.find(([sql]: [string]) =>
+          sql.includes(`'7 days'`),
+        )?.[0] ?? '';
 
       expect(weeklySql).toContain(`'7 days'`);
     });
@@ -474,9 +520,10 @@ describe('LeaderboardAggregationJob', () => {
       dataSource.query.mockResolvedValue([]);
       await job.aggregateAll();
 
-      const allTimeSql: string = dataSource.query.mock.calls.find(
-        ([sql]: [string]) => !sql.includes(`'7 days'`),
-      )?.[0] ?? '';
+      const allTimeSql: string =
+        dataSource.query.mock.calls.find(
+          ([sql]: [string]) => !sql.includes(`'7 days'`),
+        )?.[0] ?? '';
 
       expect(allTimeSql).not.toContain('7 days');
     });
@@ -485,9 +532,10 @@ describe('LeaderboardAggregationJob', () => {
       dataSource.query.mockResolvedValue([]);
       await job.aggregateAll();
 
-      const weeklySql: string = dataSource.query.mock.calls.find(
-        ([sql]: [string]) => sql.includes(`'7 days'`),
-      )?.[0] ?? '';
+      const weeklySql: string =
+        dataSource.query.mock.calls.find(([sql]: [string]) =>
+          sql.includes(`'7 days'`),
+        )?.[0] ?? '';
 
       expect(weeklySql).toMatch(/RESOLVED/);
       expect(weeklySql).toMatch(/NOW\(\)\s*-\s*INTERVAL\s*'7 days'/i);
@@ -516,13 +564,19 @@ describe('LeaderboardAggregationJob', () => {
       dataSource.query
         .mockResolvedValueOnce([mockAggRow()])
         .mockResolvedValueOnce([]);
-      dataSource.transaction.mockImplementation(async (cb: (manager: any) => Promise<void>) => {
-        const manager = {
-          delete: jest.fn().mockImplementation(async () => { deleteOrder.push('delete'); }),
-          save: jest.fn().mockImplementation(async () => { saveOrder.push('save'); }),
-        };
-        await cb(manager);
-      });
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: any) => Promise<void>) => {
+          const manager = {
+            delete: jest.fn().mockImplementation(async () => {
+              deleteOrder.push('delete');
+            }),
+            save: jest.fn().mockImplementation(async () => {
+              saveOrder.push('save');
+            }),
+          };
+          await cb(manager);
+        },
+      );
 
       await job.aggregateAll();
 
@@ -538,15 +592,19 @@ describe('LeaderboardAggregationJob', () => {
       dataSource.query
         .mockResolvedValueOnce([mockAggRow()])
         .mockResolvedValueOnce([]);
-      dataSource.transaction.mockImplementation(async (cb: (manager: any) => Promise<void>) => {
-        const manager = {
-          delete: jest.fn().mockImplementation(async (_entity: any, criteria: any) => {
-            deletedWith = criteria;
-          }),
-          save: jest.fn().mockResolvedValue(undefined),
-        };
-        await cb(manager);
-      });
+      dataSource.transaction.mockImplementation(
+        async (cb: (manager: any) => Promise<void>) => {
+          const manager = {
+            delete: jest
+              .fn()
+              .mockImplementation(async (_entity: any, criteria: any) => {
+                deletedWith = criteria;
+              }),
+            save: jest.fn().mockResolvedValue(undefined),
+          };
+          await cb(manager);
+        },
+      );
 
       await job.aggregateAll();
 

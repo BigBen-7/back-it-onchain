@@ -8,7 +8,7 @@ export class LeaderboardService {
   constructor(
     @InjectRepository(Leaderboard)
     private readonly leaderboardRepo: Repository<Leaderboard>,
-  ) { }
+  ) {}
 
   async getLeaderboard(period: LeaderboardPeriod, limit = 50) {
     return this.leaderboardRepo.find({

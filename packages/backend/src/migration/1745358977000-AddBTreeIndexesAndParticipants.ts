@@ -9,9 +9,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *   - Adds indexes on calls(status), calls(end_ts), calls(creator_wallet)
  *   - Creates participants table with compound index on (call_id, wallet)
  */
-export class AddBTreeIndexesAndParticipants1745358977000
-  implements MigrationInterface
-{
+export class AddBTreeIndexesAndParticipants1745358977000 implements MigrationInterface {
   name = 'AddBTreeIndexesAndParticipants1745358977000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -54,9 +52,7 @@ export class AddBTreeIndexesAndParticipants1745358977000
       `DROP INDEX IF EXISTS "IDX_participant_call_wallet";`,
     );
     await queryRunner.query(`DROP TABLE IF EXISTS "participants";`);
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_call_creator_wallet";`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_call_creator_wallet";`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_call_end_ts";`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_call_status";`);
   }

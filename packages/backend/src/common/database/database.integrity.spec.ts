@@ -173,15 +173,20 @@ describe('Database Integrity (Schema Drift Detection)', () => {
       }> = [];
 
       for (const entity of entities) {
-        const dbColumns = await dataSource.query(`
+        const dbColumns = await dataSource.query(
+          `
           SELECT column_name 
           FROM information_schema.columns 
           WHERE table_schema = 'public' 
           AND table_name = $1
-        `, [entity.tableName]);
+        `,
+          [entity.tableName],
+        );
 
         const dbColumnNames = dbColumns.map((col: any) => col.column_name);
-        const entityColumnNames = entity.columns.map((col) => col.databaseName || col.propertyName);
+        const entityColumnNames = entity.columns.map(
+          (col) => col.databaseName || col.propertyName,
+        );
 
         const missingColumns = entityColumnNames.filter(
           (colName) => !dbColumnNames.includes(colName),
@@ -218,12 +223,15 @@ describe('Database Integrity (Schema Drift Detection)', () => {
       }> = [];
 
       for (const entity of entities) {
-        const dbColumns = await dataSource.query(`
+        const dbColumns = await dataSource.query(
+          `
           SELECT column_name, data_type, udt_name
           FROM information_schema.columns 
           WHERE table_schema = 'public' 
           AND table_name = $1
-        `, [entity.tableName]);
+        `,
+          [entity.tableName],
+        );
 
         for (const column of entity.columns) {
           const dbColumn = dbColumns.find(
@@ -251,8 +259,9 @@ describe('Database Integrity (Schema Drift Detection)', () => {
               uuid: ['uuid'],
             };
 
-            const expectedTypes =
-              typeMap[String(entityType).toLowerCase()] || [String(entityType).toLowerCase()];
+            const expectedTypes = typeMap[String(entityType).toLowerCase()] || [
+              String(entityType).toLowerCase(),
+            ];
             const isTypeMatch = expectedTypes.includes(dbType.toLowerCase());
 
             if (!isTypeMatch) {
@@ -290,12 +299,15 @@ describe('Database Integrity (Schema Drift Detection)', () => {
       }> = [];
 
       for (const entity of entities) {
-        const dbColumns = await dataSource.query(`
+        const dbColumns = await dataSource.query(
+          `
           SELECT column_name, is_nullable
           FROM information_schema.columns 
           WHERE table_schema = 'public' 
           AND table_name = $1
-        `, [entity.tableName]);
+        `,
+          [entity.tableName],
+        );
 
         for (const column of entity.columns) {
           // Skip primary keys and relationships as they have special handling
@@ -365,13 +377,19 @@ describe('Database Integrity (Schema Drift Detection)', () => {
             );
 
             if (joinColumn) {
-              const dbForeignKeys = await dataSource.query(`
+              const dbForeignKeys = await dataSource.query(
+                `
                 SELECT constraint_name, column_name
                 FROM information_schema.key_column_usage
                 WHERE table_schema = 'public'
                 AND table_name = $1
                 AND column_name = $2
-              `, [entity.tableName, joinColumn.databaseName || joinColumn.propertyName]);
+              `,
+                [
+                  entity.tableName,
+                  joinColumn.databaseName || joinColumn.propertyName,
+                ],
+              );
 
               if (dbForeignKeys.length === 0) {
                 missingForeignKeys.push({

@@ -9,12 +9,11 @@ import {
   ConnectedSocket,
   WsException,
 } from '@nestjs/websockets';
-import { UseGuards, Logger, Inject } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { Server, Socket } from 'socket.io';
+import { Server } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 
-import { WsJwtGuard } from './guards/ws-jwt.guard';
 import {
   SubscribeMarketDto,
   UnsubscribeMarketDto,
@@ -26,6 +25,7 @@ import {
   OutcomeProposedEvent,
   DisputeRaisedEvent,
   DisputeResolvedEvent,
+  AuthenticatedSocket,
 } from './events.types';
 
 /**
@@ -56,7 +56,7 @@ export class EventsGateway
 
   // ── Lifecycle hooks ────────────────────────────────────────────────────────
 
-  afterInit(server: Server) {
+  afterInit() {
     this.logger.log('WebSocket gateway initialised on namespace /events');
   }
 
@@ -66,13 +66,15 @@ export class EventsGateway
    * clients are automatically joined to their private user room; anonymous
    * clients can still subscribe to public market rooms.
    */
-  async handleConnection(client: Socket) {
+  async handleConnection(client: AuthenticatedSocket) {
     try {
       const userId = this.extractUserIdFromHandshake(client);
       if (userId) {
         client.data.userId = userId;
         await client.join(USER_ROOM(userId));
-        this.logger.debug(`Client ${client.id} authenticated as user ${userId}`);
+        this.logger.debug(
+          `Client ${client.id} authenticated as user ${userId}`,
+        );
       } else {
         client.data.userId = null;
         this.logger.debug(`Client ${client.id} connected anonymously`);
@@ -87,7 +89,7 @@ export class EventsGateway
     );
   }
 
-  handleDisconnect(client: Socket) {
+  handleDisconnect(client: AuthenticatedSocket) {
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
@@ -102,7 +104,7 @@ export class EventsGateway
   @SubscribeMessage('subscribeMarket')
   async handleSubscribeMarket(
     @MessageBody() dto: SubscribeMarketDto,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const room = MARKET_ROOM(dto.marketId);
     await client.join(room);
@@ -119,7 +121,7 @@ export class EventsGateway
   @SubscribeMessage('unsubscribeMarket')
   async handleUnsubscribeMarket(
     @MessageBody() dto: UnsubscribeMarketDto,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const room = MARKET_ROOM(dto.marketId);
     await client.leave(room);
@@ -140,7 +142,7 @@ export class EventsGateway
   @SubscribeMessage('authenticate')
   async handleAuthenticate(
     @MessageBody() payload: { token: string },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     try {
       const decoded = await this.jwtService.verifyAsync<{ sub: string }>(
@@ -176,9 +178,7 @@ export class EventsGateway
     this.logger.debug(
       `[stake.created] marketId=${event.marketId} staker=${event.staker}`,
     );
-    this.server
-      .to(MARKET_ROOM(event.marketId))
-      .emit('stakeCreated', event);
+    this.server.to(MARKET_ROOM(event.marketId)).emit('stakeCreated', event);
   }
 
   /**
@@ -190,9 +190,7 @@ export class EventsGateway
     this.logger.debug(
       `[price.updated] marketId=${event.marketId} price=${event.price}`,
     );
-    this.server
-      .to(MARKET_ROOM(event.marketId))
-      .emit('priceUpdated', event);
+    this.server.to(MARKET_ROOM(event.marketId)).emit('priceUpdated', event);
   }
 
   /**
@@ -204,9 +202,7 @@ export class EventsGateway
     this.logger.debug(
       `[outcome.proposed] marketId=${event.marketId} callId=${event.callId}`,
     );
-    this.server
-      .to(MARKET_ROOM(event.marketId))
-      .emit('outcomeProposed', event);
+    this.server.to(MARKET_ROOM(event.marketId)).emit('outcomeProposed', event);
   }
 
   /**
@@ -218,18 +214,14 @@ export class EventsGateway
     this.logger.debug(
       `[dispute.raised] callId=${event.callId} staker=${event.staker}`,
     );
-    this.server
-      .to(MARKET_ROOM(event.marketId))
-      .emit('disputeRaised', event);
+    this.server.to(MARKET_ROOM(event.marketId)).emit('disputeRaised', event);
 
     // Also push to the staker's private room
     if (event.staker) {
-      this.server
-        .to(USER_ROOM(event.staker))
-        .emit('notification', {
-          type: 'dispute.raised',
-          payload: event,
-        });
+      this.server.to(USER_ROOM(event.staker)).emit('notification', {
+        type: 'dispute.raised',
+        payload: event,
+      });
     }
   }
 
@@ -242,17 +234,13 @@ export class EventsGateway
     this.logger.debug(
       `[dispute.resolved] callId=${event.callId} resolution=${event.resolution}`,
     );
-    this.server
-      .to(MARKET_ROOM(event.marketId))
-      .emit('disputeResolved', event);
+    this.server.to(MARKET_ROOM(event.marketId)).emit('disputeResolved', event);
 
     if (event.staker) {
-      this.server
-        .to(USER_ROOM(event.staker))
-        .emit('notification', {
-          type: 'dispute.resolved',
-          payload: event,
-        });
+      this.server.to(USER_ROOM(event.staker)).emit('notification', {
+        type: 'dispute.resolved',
+        payload: event,
+      });
     }
   }
 
@@ -265,13 +253,11 @@ export class EventsGateway
     this.logger.debug(
       `[user.notification] userId=${event.userId} type=${event.type}`,
     );
-    this.server
-      .to(USER_ROOM(event.userId))
-      .emit('notification', {
-        type: event.type,
-        payload: event.payload,
-        timestamp: event.timestamp ?? Date.now(),
-      });
+    this.server.to(USER_ROOM(event.userId)).emit('notification', {
+      type: event.type,
+      payload: event.payload,
+      timestamp: event.timestamp ?? Date.now(),
+    });
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -283,7 +269,9 @@ export class EventsGateway
    *   - Query param: ?token=<token>
    * Returns the user's `sub` claim, or null if absent/invalid.
    */
-  private extractUserIdFromHandshake(client: Socket): string | null {
+  private extractUserIdFromHandshake(
+    client: AuthenticatedSocket,
+  ): string | null {
     try {
       const authHeader =
         (client.handshake.headers.authorization as string) ?? '';

@@ -24,7 +24,6 @@ export class InitialSchema1700000000000 implements MigrationInterface {
   name = 'InitialSchema1700000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-
     // ── Postgres enums ────────────────────────────────────────────────────────
 
     await queryRunner.query(`
@@ -233,10 +232,18 @@ export class InitialSchema1700000000000 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop tables in reverse dependency order
     await queryRunner.query(`DROP TABLE IF EXISTS "blocked_requests" CASCADE;`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "ip_rules"          CASCADE;`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "audit_logs"        CASCADE;`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "calls"             CASCADE;`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "users"             CASCADE;`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "ip_rules"          CASCADE;`,
+    );
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "audit_logs"        CASCADE;`,
+    );
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "calls"             CASCADE;`,
+    );
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "users"             CASCADE;`,
+    );
 
     // Drop enums
     await queryRunner.query(`DROP TYPE IF EXISTS block_reason_enum;`);

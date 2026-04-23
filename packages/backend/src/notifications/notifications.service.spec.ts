@@ -9,7 +9,9 @@ import { Notification, NotificationType } from './notification.entity';
 // Helpers
 // ---------------------------------------------------------------------------
 
-const mockNotification = (overrides: Partial<Notification> = {}): Notification =>
+const mockNotification = (
+  overrides: Partial<Notification> = {},
+): Notification =>
   ({
     id: 'uuid-1',
     recipientWallet: '0xUSER',
@@ -141,7 +143,10 @@ describe('NotificationsService', () => {
   // -------------------------------------------------------------------------
   describe('findByUser', () => {
     it('returns paginated notifications for a wallet', async () => {
-      const notifications = [mockNotification(), mockNotification({ id: 'uuid-2' })];
+      const notifications = [
+        mockNotification(),
+        mockNotification({ id: 'uuid-2' }),
+      ];
       repo.findAndCount.mockResolvedValue([notifications, 2]);
 
       const result = await service.findByUser('0xUSER', 1, 20);
@@ -347,7 +352,9 @@ describe('NotificationEventsService', () => {
       ],
     }).compile();
 
-    eventsService = module.get<NotificationEventsService>(NotificationEventsService);
+    eventsService = module.get<NotificationEventsService>(
+      NotificationEventsService,
+    );
   });
 
   it('should be defined', () => {
@@ -364,7 +371,13 @@ describe('NotificationEventsService', () => {
     ];
 
     it('creates a notification for the creator', async () => {
-      await eventsService.notifyMarketResolved(1, 'BTC up?', 'yes', '0xCREATOR', stakers);
+      await eventsService.notifyMarketResolved(
+        1,
+        'BTC up?',
+        'yes',
+        '0xCREATOR',
+        stakers,
+      );
 
       expect(notificationsService.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -377,7 +390,13 @@ describe('NotificationEventsService', () => {
     });
 
     it('creates a notification for every staker', async () => {
-      await eventsService.notifyMarketResolved(1, 'BTC up?', 'yes', '0xCREATOR', stakers);
+      await eventsService.notifyMarketResolved(
+        1,
+        'BTC up?',
+        'yes',
+        '0xCREATOR',
+        stakers,
+      );
 
       // 1 creator + 2 stakers = 3 calls total
       expect(notificationsService.create).toHaveBeenCalledTimes(3);
@@ -390,7 +409,13 @@ describe('NotificationEventsService', () => {
     });
 
     it('sets userWon=true for stakers whose choice matches the outcome', async () => {
-      await eventsService.notifyMarketResolved(1, 'BTC up?', 'yes', '0xCREATOR', stakers);
+      await eventsService.notifyMarketResolved(
+        1,
+        'BTC up?',
+        'yes',
+        '0xCREATOR',
+        stakers,
+      );
 
       const staker1Call = notificationsService.create.mock.calls.find(
         ([arg]) => arg.recipientWallet === '0xSTAKER1',
@@ -404,7 +429,13 @@ describe('NotificationEventsService', () => {
     });
 
     it('works with an empty stakers list (creator only)', async () => {
-      await eventsService.notifyMarketResolved(1, 'BTC up?', 'yes', '0xCREATOR', []);
+      await eventsService.notifyMarketResolved(
+        1,
+        'BTC up?',
+        'yes',
+        '0xCREATOR',
+        [],
+      );
 
       expect(notificationsService.create).toHaveBeenCalledTimes(1);
     });
@@ -416,7 +447,12 @@ describe('NotificationEventsService', () => {
   describe('notifyStakeReceived', () => {
     it('notifies the call creator about the stake', async () => {
       await eventsService.notifyStakeReceived(
-        42, 'ETH up?', '0xSTAKER', '200', 'yes', '0xCREATOR',
+        42,
+        'ETH up?',
+        '0xSTAKER',
+        '200',
+        'yes',
+        '0xCREATOR',
       );
 
       expect(notificationsService.create).toHaveBeenCalledTimes(1);
@@ -443,7 +479,10 @@ describe('NotificationEventsService', () => {
   describe('notifyNewFollower', () => {
     it('notifies the followed wallet about the new follower', async () => {
       await eventsService.notifyNewFollower(
-        '0xFOLLOWER', 'alice', 'https://avatar', '0xFOLLOWED',
+        '0xFOLLOWER',
+        'alice',
+        'https://avatar',
+        '0xFOLLOWED',
       );
 
       expect(notificationsService.create).toHaveBeenCalledWith(
@@ -462,7 +501,12 @@ describe('NotificationEventsService', () => {
     });
 
     it('handles undefined handle and avatar', async () => {
-      await eventsService.notifyNewFollower('0xFOLLOWER', undefined, undefined, '0xFOLLOWED');
+      await eventsService.notifyNewFollower(
+        '0xFOLLOWER',
+        undefined,
+        undefined,
+        '0xFOLLOWED',
+      );
 
       const [arg] = notificationsService.create.mock.calls[0];
       expect(arg.payload.followerHandle).toBeUndefined();
@@ -476,25 +520,42 @@ describe('NotificationEventsService', () => {
   describe('event emitters', () => {
     it('emits market.resolved event', () => {
       eventsService.emitMarketResolved({
-        callId: 1, callTitle: 'test', outcome: 'yes',
-        creatorWallet: '0xC', stakers: [],
+        callId: 1,
+        callTitle: 'test',
+        outcome: 'yes',
+        creatorWallet: '0xC',
+        stakers: [],
       });
-      expect(eventEmitter.emit).toHaveBeenCalledWith('market.resolved', expect.any(Object));
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'market.resolved',
+        expect.any(Object),
+      );
     });
 
     it('emits stake.received event', () => {
       eventsService.emitStakeReceived({
-        callId: 1, callTitle: 'test', staker: '0xS',
-        amount: '10', choice: 'yes', creatorWallet: '0xC',
+        callId: 1,
+        callTitle: 'test',
+        staker: '0xS',
+        amount: '10',
+        choice: 'yes',
+        creatorWallet: '0xC',
       });
-      expect(eventEmitter.emit).toHaveBeenCalledWith('stake.received', expect.any(Object));
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'stake.received',
+        expect.any(Object),
+      );
     });
 
     it('emits follower.new event', () => {
       eventsService.emitNewFollower({
-        follower: '0xF', followedWallet: '0xFW',
+        follower: '0xF',
+        followedWallet: '0xFW',
       });
-      expect(eventEmitter.emit).toHaveBeenCalledWith('follower.new', expect.any(Object));
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'follower.new',
+        expect.any(Object),
+      );
     });
   });
 });

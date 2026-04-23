@@ -1,6 +1,6 @@
 /**
  * EXAMPLE: Integrating Notifications with Users Service
- * 
+ *
  * This file shows how to update your users.service.ts to emit notifications
  */
 

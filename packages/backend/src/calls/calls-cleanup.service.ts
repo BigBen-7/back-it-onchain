@@ -34,12 +34,14 @@ export class CallsCleanupService {
       return;
     }
 
-    this.logger.log(`Found ${staleCalls.length} abandoned calls. Marking as UNRESOLVED.`);
+    this.logger.log(
+      `Found ${staleCalls.length} abandoned calls. Marking as UNRESOLVED.`,
+    );
 
     for (const call of staleCalls) {
       call.status = 'UNRESOLVED';
       await this.callsRepository.save(call);
-      
+
       await this.notifyAdmin(call);
     }
 
@@ -47,7 +49,9 @@ export class CallsCleanupService {
   }
 
   private async notifyAdmin(call: Call) {
-    const discordWebhookUrl = this.configService.get<string>('DISCORD_ADMIN_WEBHOOK_URL');
+    const discordWebhookUrl = this.configService.get<string>(
+      'DISCORD_ADMIN_WEBHOOK_URL',
+    );
     const message = `🚨 **Manual Intervention Required** 🚨\nCall ID: ${call.id} (Title: ${call.title || 'N/A'}) has been marked as **UNRESOLVED** due to inactivity past its end time (${call.endTs}).`;
 
     if (discordWebhookUrl) {
@@ -58,10 +62,14 @@ export class CallsCleanupService {
           body: JSON.stringify({ content: message }),
         });
       } catch (error) {
-        this.logger.error(`Failed to send Discord notification for call ${call.id}: ${error.message}`);
+        this.logger.error(
+          `Failed to send Discord notification for call ${call.id}: ${error.message}`,
+        );
       }
     } else {
-      this.logger.warn(`No Discord webhook URL configured. Manual intervention required for call ${call.id}.`);
+      this.logger.warn(
+        `No Discord webhook URL configured. Manual intervention required for call ${call.id}.`,
+      );
       this.logger.warn(message);
     }
   }

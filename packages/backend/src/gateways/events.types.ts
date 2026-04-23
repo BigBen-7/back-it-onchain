@@ -1,12 +1,20 @@
+import { Socket } from 'socket.io';
+
 /**
  * Strongly-typed payloads for every EventEmitter2 event the gateway listens to.
  * These mirror the events emitted by the service layer (Issue 9 hooks).
  */
 
+export interface AuthenticatedSocket extends Socket {
+  data: {
+    userId: string | null;
+  };
+}
+
 export interface StakeCreatedEvent {
   marketId: string;
   staker: string;
-  amount: string;       // stringified bigint / token amount
+  amount: string; // stringified bigint / token amount
   outcomeIndex: number;
   timestamp: number;
   txHash?: string;
@@ -14,8 +22,8 @@ export interface StakeCreatedEvent {
 
 export interface PriceUpdatedEvent {
   marketId: string;
-  price: string;        // stringified decimal
-  source: string;       // e.g. "chainlink" | "pyth" | "manual"
+  price: string; // stringified decimal
+  source: string; // e.g. "chainlink" | "pyth" | "manual"
   timestamp: number;
 }
 
@@ -31,7 +39,7 @@ export interface OutcomeProposedEvent {
 export interface DisputeRaisedEvent {
   marketId: string;
   callId: string;
-  staker: string;       // userId / wallet address of the disputer
+  staker: string; // userId / wallet address of the disputer
   bondAmount: string;
   disputedAt: number;
   txHash?: string;
@@ -49,7 +57,7 @@ export interface DisputeResolvedEvent {
 
 export interface UserNotificationEvent {
   userId: string;
-  type: string;         // e.g. "stake.confirmed" | "reward.claimable"
+  type: string; // e.g. "stake.confirmed" | "reward.claimable"
   payload: Record<string, unknown>;
   timestamp?: number;
 }

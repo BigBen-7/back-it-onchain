@@ -9,8 +9,12 @@ import { NotificationListeners } from './notification.listeners';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Notification])],
-  providers: [NotificationsService, NotificationEventsService, NotificationListeners],
+  providers: [
+    NotificationsService,
+    NotificationEventsService,
+    NotificationListeners,
+  ],
   controllers: [NotificationsController],
   exports: [NotificationsService, NotificationEventsService],
 })
-export class NotificationsModule { }
+export class NotificationsModule {}

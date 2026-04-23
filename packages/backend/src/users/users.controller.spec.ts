@@ -62,9 +62,9 @@ describe('UsersController', () => {
     it('should throw error if user not found', async () => {
       mockUsersService.findByWallet.mockResolvedValue(null);
 
-      await expect(
-        controller.getUser('user-999'),
-      ).rejects.toThrow('User not found');
+      await expect(controller.getUser('user-999')).rejects.toThrow(
+        'User not found',
+      );
     });
   });
 
@@ -81,15 +81,9 @@ describe('UsersController', () => {
 
       mockUsersService.updateProfile.mockResolvedValue(updatedUser);
 
-      const result = await controller.updateProfile(
-        'user-123',
-        updateDto,
-      );
+      const result = await controller.updateProfile('user-123', updateDto);
 
-      expect(service.updateProfile).toHaveBeenCalledWith(
-        'user-123',
-        updateDto,
-      );
+      expect(service.updateProfile).toHaveBeenCalledWith('user-123', updateDto);
       expect(result).toEqual(updatedUser);
     });
 

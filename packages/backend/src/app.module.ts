@@ -29,6 +29,7 @@ import { BadgesModule } from './badges/badges.module';
 import { UserBadge } from './badges/badge.entity';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { GatewaysModule } from './gateways/gateways.module';
 
 @Module({
   imports: [
@@ -60,23 +61,35 @@ import { UploadsModule } from './uploads/uploads.module';
         username: configService.get<string>('DB_USERNAME', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgres'),
         database: configService.get<string>('DB_DATABASE', 'back_it_onchain'),
-        
-        entities: [User, Call, StakeActivity, UserFollows, UserSettings, Notification, PlatformSettings, UserBadge],
+
+        entities: [
+          User,
+          Call,
+          StakeActivity,
+          UserFollows,
+          UserSettings,
+          Notification,
+          PlatformSettings,
+          UserBadge,
+        ],
 
         synchronize: true,
       }),
       inject: [ConfigService],
     }),
     TypeOrmModule.forFeature([User, Call]),
-    ThrottlerModule.forRoot([{
-      name: 'default',
-      ttl: 60000,
-      limit: 100,
-    }, {
-      name: 'short',
-      ttl: 60000,
-      limit: 5,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60000,
+        limit: 100,
+      },
+      {
+        name: 'short',
+        ttl: 60000,
+        limit: 5,
+      },
+    ]),
     AuthModule,
     CallsModule,
     OracleModule,
@@ -88,6 +101,7 @@ import { UploadsModule } from './uploads/uploads.module';
     BadgesModule,
     AnalyticsModule,
     UploadsModule,
+    GatewaysModule,
   ],
   controllers: [AppController],
   providers: [
@@ -98,4 +112,4 @@ import { UploadsModule } from './uploads/uploads.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

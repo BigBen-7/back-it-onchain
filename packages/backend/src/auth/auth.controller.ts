@@ -1,4 +1,11 @@
-import { Controller, Post, Get, Body, Query, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { ChainType } from '../users/user.entity';
@@ -57,7 +64,12 @@ export class AuthController {
   @Throttle({ short: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(
-    @Body() body: { wallet: string; chain?: ChainType; referrerWallet?: string },
+    @Body()
+    body: {
+      wallet: string;
+      chain?: ChainType;
+      referrerWallet?: string;
+    },
   ) {
     const user = await this.authService.validateUser(
       body.wallet,

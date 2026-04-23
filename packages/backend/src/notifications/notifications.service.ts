@@ -33,13 +33,14 @@ export class NotificationsService {
   }> {
     const skip = (page - 1) * limit;
 
-    const [notifications, total] = await this.notificationsRepository.findAndCount({
-      where: { recipientWallet },
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-      relations: ['recipient'],
-    });
+    const [notifications, total] =
+      await this.notificationsRepository.findAndCount({
+        where: { recipientWallet },
+        order: { createdAt: 'DESC' },
+        skip,
+        take: limit,
+        relations: ['recipient'],
+      });
 
     return {
       notifications,
@@ -57,7 +58,9 @@ export class NotificationsService {
 
   async markAsRead(notificationId: string): Promise<Notification | null> {
     await this.notificationsRepository.update(notificationId, { isRead: true });
-    return this.notificationsRepository.findOne({ where: { id: notificationId } });
+    return this.notificationsRepository.findOne({
+      where: { id: notificationId },
+    });
   }
 
   async markAllAsRead(recipientWallet: string): Promise<void> {

@@ -20,7 +20,7 @@ export class ReputationScoreSnippet {
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Call) private readonly callRepo: Repository<Call>,
-  ) { }
+  ) {}
 
   async computeAndPersistReputation(userId: string): Promise<number> {
     const [totalResolvedCalls, winCount] = await Promise.all([

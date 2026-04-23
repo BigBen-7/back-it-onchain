@@ -10,7 +10,10 @@
  *   - Original method name is preserved on the descriptor
  */
 
-import { RpcExhaustedError, RpcNonRetryableError } from '../common/rpc/rpc-retry.util';
+import {
+  RpcExhaustedError,
+  RpcNonRetryableError,
+} from '../common/rpc/rpc-retry.util';
 import { Retryable } from './retryable.decorator';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

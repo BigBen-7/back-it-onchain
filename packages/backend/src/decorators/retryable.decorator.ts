@@ -13,7 +13,11 @@
  * async getOraclePrice() { ... }
  */
 
-import { withRetry, RetryOptions, defaultSorobanIsRetryable } from '../common/rpc/rpc-retry.util';
+import {
+  withRetry,
+  RetryOptions,
+  defaultSorobanIsRetryable,
+} from '../common/rpc/rpc-retry.util';
 
 /**
  * @Retryable(maxAttempts)
@@ -47,24 +51,27 @@ export function Retryable(optionsOrMaxAttempts: number | RetryOptions) {
   const options: RetryOptions =
     typeof optionsOrMaxAttempts === 'number'
       ? {
-        maxAttempts: optionsOrMaxAttempts,
-        isRetryable: defaultSorobanIsRetryable,
-      }
+          maxAttempts: optionsOrMaxAttempts,
+          isRetryable: defaultSorobanIsRetryable,
+        }
       : {
-        isRetryable: defaultSorobanIsRetryable,
-        ...optionsOrMaxAttempts,
-      };
+          isRetryable: defaultSorobanIsRetryable,
+          ...optionsOrMaxAttempts,
+        };
 
   return function (
     target: object,
     propertyKey: string,
     descriptor: PropertyDescriptor,
   ): PropertyDescriptor {
-    const originalMethod = descriptor.value as (...args: unknown[]) => Promise<unknown>;
+    const originalMethod = descriptor.value as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
 
     // Build a human-readable operation name for log messages
     const className = target.constructor?.name ?? 'Unknown';
-    const operationName = options.operationName ?? `${className}.${propertyKey}`;
+    const operationName =
+      options.operationName ?? `${className}.${propertyKey}`;
 
     descriptor.value = async function (...args: unknown[]) {
       return withRetry(() => originalMethod.apply(this, args), {

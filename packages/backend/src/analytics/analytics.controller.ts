@@ -1,6 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
-import { PriceHistoryPeriod, PriceHistoryQueryDto } from './dto/price-history-query.dto';
+import {
+  PriceHistoryPeriod,
+  PriceHistoryQueryDto,
+} from './dto/price-history-query.dto';
 
 @Controller('analytics')
 export class AnalyticsController {

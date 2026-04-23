@@ -318,8 +318,8 @@ describe('BadgesService', () => {
 
         const result = await (service as any).getCallCount(wallet);
 
-        const [actualQuery, actualParams] = (mockDataSource.query as any)
-          .mock.calls[0];
+        const [actualQuery, actualParams] = (mockDataSource.query as any).mock
+          .calls[0];
         expect(normalizeSql(actualQuery)).toBe(
           normalizeSql(
             `SELECT COUNT(*)::int AS cnt FROM "call"
@@ -337,8 +337,8 @@ describe('BadgesService', () => {
 
         const result = await (service as any).getWinsCount(wallet);
 
-        const [actualQuery, actualParams] = (mockDataSource.query as any)
-          .mock.calls[0];
+        const [actualQuery, actualParams] = (mockDataSource.query as any).mock
+          .calls[0];
         expect(normalizeSql(actualQuery)).toBe(
           normalizeSql(
             `SELECT COUNT(*)::int AS cnt FROM "call"
@@ -356,8 +356,8 @@ describe('BadgesService', () => {
 
         const result = await (service as any).getTotalStake(wallet);
 
-        const [actualQuery, actualParams] = (mockDataSource.query as any)
-          .mock.calls[0];
+        const [actualQuery, actualParams] = (mockDataSource.query as any).mock
+          .calls[0];
         expect(normalizeSql(actualQuery)).toBe(
           normalizeSql(
             `SELECT COALESCE(SUM(total_stake_yes + total_stake_no), 0) AS total
@@ -383,8 +383,8 @@ describe('BadgesService', () => {
 
         const result = await (service as any).getFollowerCount(wallet);
 
-        const [actualQuery, actualParams] = (mockDataSource.query as any)
-          .mock.calls[0];
+        const [actualQuery, actualParams] = (mockDataSource.query as any).mock
+          .calls[0];
         expect(normalizeSql(actualQuery)).toBe(
           normalizeSql(
             `SELECT COUNT(*)::int AS cnt FROM user_follows
