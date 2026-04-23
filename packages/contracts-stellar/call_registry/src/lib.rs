@@ -8,6 +8,7 @@ use soroban_sdk::{
 mod vault {
     use soroban_sdk::{contractclient, Address, Env};
 
+    #[allow(dead_code)]
     #[contractclient(name = "VaultClient")]
     pub trait Vault {
         fn deposit(env: Env, from: Address, amount: i128);
@@ -399,11 +400,7 @@ impl CallRegistry {
     /// `stakers` is a list of (address, governance_token_balance) pairs.
     /// The treasury (admin) keeps the interest earned by the vault; only explicit
     /// platform fees collected via surge pricing are distributed here.
-    pub fn distribute_dividends(
-        env: Env,
-        stake_token: Address,
-        stakers: Vec<(Address, i128)>,
-    ) {
+    pub fn distribute_dividends(env: Env, stake_token: Address, stakers: Vec<(Address, i128)>) {
         let admin = Self::get_admin(&env);
         admin.require_auth();
 

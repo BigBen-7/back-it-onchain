@@ -3,29 +3,8 @@
 use super::*;
 use soroban_sdk::{
     testutils::{Address as _, Events, Ledger, MockAuth, MockAuthInvoke},
-    vec, Address, BytesN, Env, IntoVal, String,
+    vec, Address, BytesN, Env, IntoVal, String, Symbol,
 };
-
-fn setup_env() -> (Env, Address, Address, Address, Address) {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let contract_id = env.register_contract(None, CallRegistry);
-    let client = CallRegistryClient::new(&env, &contract_id);
-    let admin = Address::generate(&env);
-    client.initialize(&admin);
-
-    let stake_token_admin = Address::generate(&env);
-    let stake_token_contract =
-        env.register_stellar_asset_contract_v2(stake_token_admin.clone());
-    let stake_token = stake_token_contract.address();
-    let stake_token_admin_client = token::StellarAssetClient::new(&env, &stake_token);
-
-    let creator = Address::generate(&env);
-    stake_token_admin_client.mint(&creator, &10_000);
-
-    (env, contract_id, admin, stake_token, creator)
-}
 
 fn default_metadata(env: &Env) -> CreateCallMetadata {
     CreateCallMetadata {
@@ -57,7 +36,13 @@ fn test_create_call() {
     stake_token_admin_client.mint(&creator, &1000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     assert_eq!(call_id, 0);
     let call = client.get_call(&call_id);
@@ -99,7 +84,13 @@ fn test_stake_on_call() {
     stake_token_admin_client.mint(&staker, &1000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     client.stake_on_call(&call_id, &staker, &1000, &false);
 
@@ -150,7 +141,13 @@ fn test_stake_ended_call() {
     stake_token_admin_client.mint(&staker, &1000);
 
     let end_ts = env.ledger().timestamp() + 100;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
     env.ledger().set_timestamp(end_ts + 1);
     client.stake_on_call(&call_id, &staker, &50, &false);
 }
@@ -197,7 +194,13 @@ fn test_pause_unpause_flow() {
     stake_token_admin_client.mint(&staker, &1000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     client.pause();
     assert!(client.get_is_paused());
@@ -315,18 +318,24 @@ fn test_stake_applies_surge_fee() {
     stake_token_admin_client.mint(&staker, &10_000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
-    // participant_count = 1 → fee_bps = 50; stake 10_000 → fee = 5, net = 9_995
+    // participant_count = 1 → fee_bps = 50; stake 10_000 → fee = 50, net = 9_950
     client.stake_on_call(&call_id, &staker, &10_000, &false);
 
     let call = client.get_call(&call_id);
-    assert_eq!(call.total_stake_no, 9_995);
+    assert_eq!(call.total_stake_no, 9_950);
     assert_eq!(call.participant_count, 2);
 
     // Platform fees should have accumulated
     let fees = client.get_platform_fees();
-    assert_eq!(fees, 5);
+    assert_eq!(fees, 50);
 }
 
 #[test]
@@ -346,7 +355,13 @@ fn test_get_fee_basis_points() {
     stake_token_admin_client.mint(&creator, &1000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
     // 1 participant → 50 bp
     assert_eq!(client.get_fee_basis_points(&call_id), 50);
@@ -374,22 +389,28 @@ fn test_distribute_dividends() {
     stake_token_admin_client.mint(&staker, &10_000);
 
     let end_ts = env.ledger().timestamp() + 1000;
-    let call_id = client.create_call(&creator, &stake_token, &100, &end_ts, &default_metadata(&env));
+    let call_id = client.create_call(
+        &creator,
+        &stake_token,
+        &100,
+        &end_ts,
+        &default_metadata(&env),
+    );
 
-    // Stake to generate fees: 10_000 * 50bp / 10_000 = 5 fee
+    // Stake to generate fees: 10_000 * 50bp / 10_000 = 50 fee
     client.stake_on_call(&call_id, &staker, &10_000, &false);
-    assert_eq!(client.get_platform_fees(), 5);
+    assert_eq!(client.get_platform_fees(), 50);
 
     let holder_a = Address::generate(&env);
     let holder_b = Address::generate(&env);
 
     // Distribute: holder_a has weight 3, holder_b has weight 2 → total 5
-    // holder_a gets 5 * 3/5 = 3, holder_b gets 5 * 2/5 = 2
+    // holder_a gets 50 * 3/5 = 30, holder_b gets 50 * 2/5 = 20
     let stakers = vec![&env, (holder_a.clone(), 3i128), (holder_b.clone(), 2i128)];
     client.distribute_dividends(&stake_token, &stakers);
 
-    assert_eq!(stake_token_client.balance(&holder_a), 3);
-    assert_eq!(stake_token_client.balance(&holder_b), 2);
+    assert_eq!(stake_token_client.balance(&holder_a), 30);
+    assert_eq!(stake_token_client.balance(&holder_b), 20);
     assert_eq!(client.get_platform_fees(), 0);
 }
 
