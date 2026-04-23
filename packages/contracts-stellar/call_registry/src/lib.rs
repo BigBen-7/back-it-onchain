@@ -8,6 +8,7 @@ use soroban_sdk::{
 mod vault {
     use soroban_sdk::{contractclient, Address, Env};
 
+    #[allow(dead_code)]
     #[contractclient(name = "VaultClient")]
     pub trait Vault {
         fn deposit(env: Env, from: Address, amount: i128);
