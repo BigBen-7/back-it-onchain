@@ -1,11 +1,11 @@
 #![no_std]
 
 mod contract;
-mod storage;
-mod roles;
-mod timelock;
-mod ownership;
-mod soulbound;
 mod errors;
+mod ownership;
+mod roles;
+mod soulbound;
+mod storage;
+mod timelock;
 
 pub use contract::*;

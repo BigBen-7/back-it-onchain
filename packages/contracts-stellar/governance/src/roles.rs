@@ -1,6 +1,6 @@
-use soroban_sdk::{Env, Address};
-use crate::storage::DataKey;
 use crate::errors::ContractError;
+use crate::storage::DataKey;
+use soroban_sdk::{Address, Env};
 
 pub fn require_owner(e: &Env, addr: &Address) {
     let owner: Address = e.storage().instance().get(&DataKey::Owner).unwrap();

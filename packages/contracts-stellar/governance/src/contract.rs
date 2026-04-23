@@ -1,17 +1,16 @@
-use soroban_sdk::{contract, contractimpl, Env, Address};
+use soroban_sdk::{contract, contractimpl, Address, Env};
 
-use crate::roles::*;
-use crate::timelock::*;
 use crate::ownership::*;
+use crate::roles::*;
 use crate::soulbound::*;
 use crate::storage::DataKey;
+use crate::timelock::*;
 
 #[contract]
 pub struct Governance;
 
 #[contractimpl]
 impl Governance {
-
     pub fn initialize(e: Env, owner: Address, councilor: Address) {
         e.storage().instance().set(&DataKey::Owner, &owner);
         e.storage().instance().set(&DataKey::Councilor, &councilor);
