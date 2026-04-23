@@ -1,6 +1,9 @@
 use soroban_sdk::{contract, contractimpl, Address, Env};
 
-use crate::ownership::*;
+use crate::ownership::{
+    accept_ownership as accept_ownership_internal,
+    transfer_ownership as transfer_ownership_internal,
+};
 use crate::roles::*;
 use crate::soulbound::*;
 use crate::storage::DataKey;
@@ -18,19 +21,19 @@ impl Governance {
     }
 
     // ---------------------------
-    // 🕒 TIMELOCK FEE UPDATE
+    // TIMELOCK FEE UPDATE
     // ---------------------------
     pub fn queue_update_fee(e: Env, caller: Address, new_fee: u32) {
         require_owner(&e, &caller);
-        queue_fee_update(&e, new_fee);
+        queue_fee_change(&e, new_fee);
     }
 
     pub fn execute_update_fee(e: Env) {
-        execute_fee_update(&e);
+        apply_fee_change(&e);
     }
 
     // ---------------------------
-    // 🛑 PAUSE SYSTEM
+    // PAUSE SYSTEM
     // ---------------------------
     pub fn pause(e: Env, caller: Address) {
         require_councilor(&e, &caller);
@@ -43,21 +46,22 @@ impl Governance {
     }
 
     // ---------------------------
-    // 🔐 OWNERSHIP (MULTISIG READY)
+    // OWNERSHIP
     // ---------------------------
     pub fn transfer_ownership(e: Env, caller: Address, new_owner: Address) {
-        transfer_ownership(&e, new_owner);
-        accept_ownership(&e);
+        require_owner(&e, &caller);
+        transfer_ownership_internal(&e, new_owner);
     }
 
     pub fn accept_ownership(e: Env) {
-        accept_transfer(&e);
+        accept_ownership_internal(&e);
     }
 
     // ---------------------------
-    // 🪙 SOULBOUND TOKEN
+    // SOULBOUND TOKEN
     // ---------------------------
-    pub fn mint_pity_token(e: Env, user: Address) {
+    pub fn mint_pity_token(e: Env, caller: Address, user: Address) {
+        require_councilor(&e, &caller);
         mint_soul(&e, user);
     }
 }

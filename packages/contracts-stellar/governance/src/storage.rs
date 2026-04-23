@@ -10,4 +10,5 @@ pub enum DataKey {
     Fee,
     PendingFee,
     FeeApplyTime,
+    Paused,
 }
