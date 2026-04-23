@@ -105,7 +105,11 @@ describe('CustomThrottlerGuard.generateKey', () => {
     // The `trackerString` param passed to generateKey is ignored in favour of the
     // request-derived tracker — the key must be `${throttlerName}:${tracker}`.
     const ctx = buildContext({ headers: {}, ip: '1.1.1.1' });
-    const key = (guard as any).generateKey(ctx, 'ignored-tracker-string', 'myThrottler');
+    const key = (guard as any).generateKey(
+      ctx,
+      'ignored-tracker-string',
+      'myThrottler',
+    );
     expect(key).not.toContain('ignored-tracker-string');
     expect(key).toBe('myThrottler:1.1.1.1');
   });
@@ -121,18 +125,31 @@ describe('CustomThrottlerGuard.getTracker', () => {
   });
 
   it('should return req.user.id when present', async () => {
-    const req = { user: { id: 'uid-1', wallet: '0xW' }, headers: { 'x-user-wallet': '0xH' }, ip: '0.0.0.1' };
+    const req = {
+      user: { id: 'uid-1', wallet: '0xW' },
+      headers: { 'x-user-wallet': '0xH' },
+      ip: '0.0.0.1',
+    };
     await expect((guard as any).getTracker(req)).resolves.toBe('uid-1');
   });
 
   it('should return req.user.wallet when id is absent', async () => {
-    const req = { user: { wallet: '0xWallet' }, headers: { 'x-user-wallet': '0xH' }, ip: '0.0.0.2' };
+    const req = {
+      user: { wallet: '0xWallet' },
+      headers: { 'x-user-wallet': '0xH' },
+      ip: '0.0.0.2',
+    };
     await expect((guard as any).getTracker(req)).resolves.toBe('0xWallet');
   });
 
   it('should return the x-user-wallet header when user is absent', async () => {
-    const req = { headers: { 'x-user-wallet': '0xHeaderWallet' }, ip: '0.0.0.3' };
-    await expect((guard as any).getTracker(req)).resolves.toBe('0xHeaderWallet');
+    const req = {
+      headers: { 'x-user-wallet': '0xHeaderWallet' },
+      ip: '0.0.0.3',
+    };
+    await expect((guard as any).getTracker(req)).resolves.toBe(
+      '0xHeaderWallet',
+    );
   });
 
   it('should return req.ip as the final fallback', async () => {

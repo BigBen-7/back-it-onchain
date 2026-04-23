@@ -29,7 +29,9 @@ function mockRepository(): jest.Mocked<Partial<Repository<User>>> {
   };
 }
 
-function mockSettingsRepository(): jest.Mocked<Partial<Repository<UserSettings>>> {
+function mockSettingsRepository(): jest.Mocked<
+  Partial<Repository<UserSettings>>
+> {
   return {
     findOne: jest.fn().mockResolvedValue(null), // no existing settings
     create: jest.fn(),
@@ -138,14 +140,14 @@ describe('AuthService', () => {
     it('should embed the wallet address as the "sub" claim', () => {
       const user = buildUser({ wallet: '0xDeadBeef' });
       const token = service.signJwt(user);
-      const decoded = jwtService.decode(token) as JwtPayload;
+      const decoded = jwtService.decode(token);
       expect(decoded.sub).toBe('0xDeadBeef');
     });
 
     it('should embed the wallet address in the "wallet" claim', () => {
       const user = buildUser({ wallet: '0xDeadBeef' });
       const token = service.signJwt(user);
-      const decoded = jwtService.decode(token) as JwtPayload;
+      const decoded = jwtService.decode(token);
       expect(decoded.wallet).toBe('0xDeadBeef');
     });
 
@@ -156,17 +158,17 @@ describe('AuthService', () => {
       const baseToken = service.signJwt(baseUser);
       const stellarToken = service.signJwt(stellarUser);
 
-      expect((jwtService.decode(baseToken) as JwtPayload).chain).toBe('base');
-      expect((jwtService.decode(stellarToken) as JwtPayload).chain).toBe('stellar');
+      expect(jwtService.decode(baseToken).chain).toBe('base');
+      expect(jwtService.decode(stellarToken).chain).toBe('stellar');
     });
 
     it('should include iat and exp claims', () => {
       const user = buildUser();
       const token = service.signJwt(user);
-      const decoded = jwtService.decode(token) as JwtPayload;
+      const decoded = jwtService.decode(token);
       expect(decoded.iat).toBeDefined();
       expect(decoded.exp).toBeDefined();
-      expect(decoded.exp).toBeGreaterThan(decoded.iat!);
+      expect(decoded.exp).toBeGreaterThan(decoded.iat);
     });
 
     it('should produce different tokens for different users', () => {
@@ -202,7 +204,9 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException for a completely invalid token', () => {
-      expect(() => service.verifyJwt('not.a.jwt')).toThrow(UnauthorizedException);
+      expect(() => service.verifyJwt('not.a.jwt')).toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for an expired token', async () => {
@@ -227,7 +231,9 @@ describe('AuthService', () => {
       // Wait for the token to expire
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      expect(() => shortService.verifyJwt(token)).toThrow(UnauthorizedException);
+      expect(() => shortService.verifyJwt(token)).toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -260,7 +266,10 @@ describe('AuthService', () => {
     it('should update the chain when an existing user switches chains', async () => {
       const existing = buildUser({ wallet: '0xSwitch', chain: 'base' });
       (usersRepo.findOne as jest.Mock).mockResolvedValue(existing);
-      (usersRepo.save as jest.Mock).mockResolvedValue({ ...existing, chain: 'stellar' });
+      (usersRepo.save as jest.Mock).mockResolvedValue({
+        ...existing,
+        chain: 'stellar',
+      });
 
       const result = await service.validateUser('0xSwitch', 'stellar');
       expect(usersRepo.save).toHaveBeenCalled();
@@ -272,11 +281,14 @@ describe('AuthService', () => {
       const referrerWallet = '0xB';
 
       // 0xB was referred by 0xA → assigning 0xB as referrer for 0xA is cyclic
-      const referrer = buildUser({ wallet: referrerWallet, referredByWallet: wallet });
+      const referrer = buildUser({
+        wallet: referrerWallet,
+        referredByWallet: wallet,
+      });
       const createdUser = buildUser({ wallet });
 
       (usersRepo.findOne as jest.Mock)
-        .mockResolvedValueOnce(null)      // user not found
+        .mockResolvedValueOnce(null) // user not found
         .mockResolvedValueOnce(referrer); // referrer found
       (usersRepo.create as jest.Mock).mockReturnValue(createdUser);
       (usersRepo.save as jest.Mock).mockResolvedValue(createdUser);

@@ -42,10 +42,7 @@ describe('SearchService', () => {
     dataSource = { query: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SearchService,
-        { provide: DataSource, useValue: dataSource },
-      ],
+      providers: [SearchService, { provide: DataSource, useValue: dataSource }],
     }).compile();
 
     service = module.get<SearchService>(SearchService);
@@ -62,8 +59,8 @@ describe('SearchService', () => {
     beforeEach(() => {
       // Default: one hit per category
       dataSource.query
-        .mockResolvedValueOnce([mockUserRow()])   // users
-        .mockResolvedValueOnce([mockCallRow()])   // calls
+        .mockResolvedValueOnce([mockUserRow()]) // users
+        .mockResolvedValueOnce([mockCallRow()]) // calls
         .mockResolvedValueOnce([mockTokenRow()]); // tokens
     });
 
@@ -122,15 +119,26 @@ describe('SearchService', () => {
       const order: string[] = [];
 
       dataSource.query
-        .mockImplementationOnce(async () => { order.push('users'); return []; })
-        .mockImplementationOnce(async () => { order.push('calls'); return []; })
-        .mockImplementationOnce(async () => { order.push('tokens'); return []; });
+        .mockImplementationOnce(async () => {
+          order.push('users');
+          return [];
+        })
+        .mockImplementationOnce(async () => {
+          order.push('calls');
+          return [];
+        })
+        .mockImplementationOnce(async () => {
+          order.push('tokens');
+          return [];
+        });
 
       await service.search('test');
 
       // All three queries must have been called
       expect(dataSource.query).toHaveBeenCalledTimes(3);
-      expect(order).toEqual(expect.arrayContaining(['users', 'calls', 'tokens']));
+      expect(order).toEqual(
+        expect.arrayContaining(['users', 'calls', 'tokens']),
+      );
     });
   });
 
@@ -141,8 +149,18 @@ describe('SearchService', () => {
     beforeEach(() => {
       dataSource.query
         .mockResolvedValueOnce([
-          mockUserRow({ id: 'u1', displayName: 'Alice', address: '0xA', avatar: 'https://a.png' }),
-          mockUserRow({ id: 'u2', displayName: 'Bob',   address: '0xB', avatar: null }),
+          mockUserRow({
+            id: 'u1',
+            displayName: 'Alice',
+            address: '0xA',
+            avatar: 'https://a.png',
+          }),
+          mockUserRow({
+            id: 'u2',
+            displayName: 'Bob',
+            address: '0xB',
+            avatar: null,
+          }),
         ])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -182,8 +200,18 @@ describe('SearchService', () => {
       dataSource.query
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
-          mockCallRow({ id: 'c1', title: 'BTC up?',  description: 'Bullish call', createdAt: callDate }),
-          mockCallRow({ id: 'c2', title: 'ETH down?', description: 'Bearish call', createdAt: callDate }),
+          mockCallRow({
+            id: 'c1',
+            title: 'BTC up?',
+            description: 'Bullish call',
+            createdAt: callDate,
+          }),
+          mockCallRow({
+            id: 'c2',
+            title: 'ETH down?',
+            description: 'Bearish call',
+            createdAt: callDate,
+          }),
         ])
         .mockResolvedValueOnce([]);
     });
@@ -215,8 +243,18 @@ describe('SearchService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
-          mockTokenRow({ id: 't1', name: 'Bitcoin', symbol: 'BTC', address: '0xBTC' }),
-          mockTokenRow({ id: 't2', name: 'Ethereum', symbol: 'ETH', address: '0xETH' }),
+          mockTokenRow({
+            id: 't1',
+            name: 'Bitcoin',
+            symbol: 'BTC',
+            address: '0xBTC',
+          }),
+          mockTokenRow({
+            id: 't2',
+            name: 'Ethereum',
+            symbol: 'ETH',
+            address: '0xETH',
+          }),
         ]);
     });
 
@@ -286,7 +324,11 @@ describe('SearchService', () => {
       dataSource.query
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([mockTokenRow(), mockTokenRow({ id: 't2' }), mockTokenRow({ id: 't3' })]);
+        .mockResolvedValueOnce([
+          mockTokenRow(),
+          mockTokenRow({ id: 't2' }),
+          mockTokenRow({ id: 't3' }),
+        ]);
 
       const result = await service.search('btc');
 

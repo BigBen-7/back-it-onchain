@@ -119,7 +119,11 @@ export class IndexerService implements OnModuleInit {
    * Given that queryFilter can time out on a busy node, this gets
    * 5 attempts with a 1 s base delay.
    */
-  @Retryable({ maxAttempts: 5, baseDelayMs: 1_000, operationName: 'indexer:queryFilter' })
+  @Retryable({
+    maxAttempts: 5,
+    baseDelayMs: 1_000,
+    operationName: 'indexer:queryFilter',
+  })
   private async queryFilter(
     contract: ethers.Contract,
     eventName: string,
@@ -145,7 +149,12 @@ export class IndexerService implements OnModuleInit {
       const currentBlock = await this.getBlockNumber();
 
       // queryFilter is already wrapped with @Retryable above
-      const [callCreatedEvents, stakeAddedEvents, callResolvedEvents, adminParamsEvents] = await Promise.all([
+      const [
+        callCreatedEvents,
+        stakeAddedEvents,
+        callResolvedEvents,
+        adminParamsEvents,
+      ] = await Promise.all([
         this.queryFilter(contract, 'CallCreated', 0, currentBlock),
         this.queryFilter(contract, 'StakeAdded', 0, currentBlock),
         this.queryFilter(contract, 'CallResolved', 0, currentBlock),
@@ -154,18 +163,24 @@ export class IndexerService implements OnModuleInit {
 
       this.logger.log(
         `Found ${callCreatedEvents.length} historical CallCreated events, ` +
-        `${stakeAddedEvents.length} StakeAdded events, ` +
-        `${callResolvedEvents.length} CallResolved events, and ` +
-        `${adminParamsEvents.length} AdminParamsChanged events`,
+          `${stakeAddedEvents.length} StakeAdded events, ` +
+          `${callResolvedEvents.length} CallResolved events, and ` +
+          `${adminParamsEvents.length} AdminParamsChanged events`,
       );
 
       for (const event of callCreatedEvents) {
         if (event.args) {
           const a = event.args;
           await this.handleCallCreated(
-            a[0] as bigint, a[1] as string, a[2] as string,
-            a[3] as bigint, a[4] as bigint, a[5] as bigint,
-            a[6] as string, a[7] as string, a[8] as string,
+            a[0] as bigint,
+            a[1] as string,
+            a[2] as string,
+            a[3] as bigint,
+            a[4] as bigint,
+            a[5] as bigint,
+            a[6] as string,
+            a[7] as string,
+            a[8] as string,
           );
         }
       }
@@ -175,7 +190,11 @@ export class IndexerService implements OnModuleInit {
           const a = event.args;
           // emitNotification=false: don't flood users with historical stake notifications
           await this.handleStakeAdded(
-            a[0] as bigint, a[1] as string, a[2] as boolean, a[3] as bigint, false,
+            a[0] as bigint,
+            a[1] as string,
+            a[2] as boolean,
+            a[3] as bigint,
+            false,
           );
         }
       }
@@ -184,7 +203,12 @@ export class IndexerService implements OnModuleInit {
         if (event.args) {
           const a = event.args;
           // emitNotification=false: don't notify for historical resolutions
-          await this.handleCallResolved(a[0] as bigint, a[1] as boolean, a[2] as bigint, false);
+          await this.handleCallResolved(
+            a[0] as bigint,
+            a[1] as boolean,
+            a[2] as bigint,
+            false,
+          );
         }
       }
 
@@ -201,7 +225,10 @@ export class IndexerService implements OnModuleInit {
           `Historical sync failed after ${err.attempts} RPC attempts: ${err.lastError.message}`,
         );
       } else {
-        this.logger.error('Unexpected error during historical sync', (err as Error).message);
+        this.logger.error(
+          'Unexpected error during historical sync',
+          (err as Error).message,
+        );
       }
       // Do not rethrow — a failed historical sync should not prevent the live listener from starting
     }
@@ -273,7 +300,7 @@ export class IndexerService implements OnModuleInit {
   ): Promise<void> {
     this.logger.log(
       `Processing StakeAdded to Call ${callId}: ` +
-      `${ethers.formatUnits(amount, 18)} on ${position ? 'YES' : 'NO'} by ${staker}`,
+        `${ethers.formatUnits(amount, 18)} on ${position ? 'YES' : 'NO'} by ${staker}`,
     );
 
     const call = await this.callsRepository.findOne({
@@ -367,10 +394,16 @@ export class IndexerService implements OnModuleInit {
   }
 
   async getPlatformSettings(): Promise<PlatformSettings> {
-    let settings = await this.settingsRepository.findOne({ where: { id: 1 } });
+    const settings = await this.settingsRepository.findOne({
+      where: { id: 1 },
+    });
     if (!settings) {
       // Return default if not populated yet
-      return { id: 1, feePercent: 0, updatedAt: new Date() } as PlatformSettings;
+      return {
+        id: 1,
+        feePercent: 0,
+        updatedAt: new Date(),
+      } as PlatformSettings;
     }
     return settings;
   }
@@ -395,7 +428,8 @@ export class IndexerService implements OnModuleInit {
     if (cid === 'QmMockCID') {
       return {
         title: 'ETH will flip BTC',
-        thesis: 'Ethereum has better fundamentals and yielding properties than Bitcoin.',
+        thesis:
+          'Ethereum has better fundamentals and yielding properties than Bitcoin.',
         target: '0.06 BTC',
         deadline: '2026-01-01',
       };
@@ -427,7 +461,7 @@ export class IndexerService implements OnModuleInit {
             maxAttempts: 3,
             baseDelayMs: 500,
             operationName: `indexer:fetchIpfs:${url.split('/ipfs/')[0]}`,
-          }
+          },
         );
 
         this.logger.log(`IPFS data fetched for ${cid} via ${url}`);
@@ -465,13 +499,26 @@ export class IndexerService implements OnModuleInit {
     void contract.on(
       'CallCreated',
       (
-        callId: bigint, creator: string, stakeToken: string,
-        stakeAmount: bigint, startTs: bigint, endTs: bigint,
-        tokenAddress: string, pairId: string, ipfsCID: string,
+        callId: bigint,
+        creator: string,
+        stakeToken: string,
+        stakeAmount: bigint,
+        startTs: bigint,
+        endTs: bigint,
+        tokenAddress: string,
+        pairId: string,
+        ipfsCID: string,
       ) => {
         void this.handleCallCreated(
-          callId, creator, stakeToken, stakeAmount,
-          startTs, endTs, tokenAddress, pairId, ipfsCID,
+          callId,
+          creator,
+          stakeToken,
+          stakeAmount,
+          startTs,
+          endTs,
+          tokenAddress,
+          pairId,
+          ipfsCID,
         ).catch((err: Error) =>
           this.logger.error(`Error handling live CallCreated: ${err.message}`),
         );
@@ -493,14 +540,18 @@ export class IndexerService implements OnModuleInit {
       (callId: bigint, outcome: boolean, finalPrice: bigint) => {
         void this.handleCallResolved(callId, outcome, finalPrice).catch(
           (err: Error) =>
-            this.logger.error(`Error handling live CallResolved: ${err.message}`),
+            this.logger.error(
+              `Error handling live CallResolved: ${err.message}`,
+            ),
         );
       },
     );
 
     void contract.on('AdminParamsChanged', (feePercent: bigint) => {
       void this.handleAdminParamsChanged(feePercent).catch((err: Error) =>
-        this.logger.error(`Error handling live AdminParamsChanged: ${err.message}`),
+        this.logger.error(
+          `Error handling live AdminParamsChanged: ${err.message}`,
+        ),
       );
     });
 
@@ -520,7 +571,7 @@ export class IndexerService implements OnModuleInit {
     if (this.reconnectCount >= LISTENER_MAX_RECONNECTS) {
       this.logger.error(
         `Live listener failed to reconnect after ${LISTENER_MAX_RECONNECTS} attempts — giving up. ` +
-        `Restart the service to resume real-time indexing.`,
+          `Restart the service to resume real-time indexing.`,
       );
       return;
     }
@@ -536,14 +587,18 @@ export class IndexerService implements OnModuleInit {
     );
 
     setTimeout(() => {
-      this.logger.log(`Reconnecting live listener (attempt ${this.reconnectCount})…`);
+      this.logger.log(
+        `Reconnecting live listener (attempt ${this.reconnectCount})…`,
+      );
       try {
         this.startListening();
         // Reset counter on successful reconnect
         this.reconnectCount = 0;
         this.logger.log('Live listener reconnected successfully');
       } catch (err) {
-        this.logger.error(`Reconnect attempt failed: ${(err as Error).message}`);
+        this.logger.error(
+          `Reconnect attempt failed: ${(err as Error).message}`,
+        );
         this.scheduleReconnect();
       }
     }, delay);

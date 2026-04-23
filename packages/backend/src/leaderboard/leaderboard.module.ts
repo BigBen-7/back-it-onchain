@@ -11,4 +11,4 @@ import { LeaderboardAggregationJob } from './leaderboard-aggregation.job';
   controllers: [LeaderboardController],
   providers: [LeaderboardService, LeaderboardAggregationJob],
 })
-export class LeaderboardModule { }
+export class LeaderboardModule {}

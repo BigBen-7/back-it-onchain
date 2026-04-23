@@ -13,9 +13,18 @@
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { rpc, Contract, xdr, scValToNative, Address } from '@stellar/stellar-sdk';
+import {
+  rpc,
+  Contract,
+  xdr,
+  scValToNative,
+  Address,
+} from '@stellar/stellar-sdk';
 import { Retryable } from '../decorators/retryable.decorator';
-import { defaultSorobanIsRetryable, RpcExhaustedError } from '../common/rpc/rpc-retry.util';
+import {
+  defaultSorobanIsRetryable,
+  RpcExhaustedError,
+} from '../common/rpc/rpc-retry.util';
 
 export interface SorobanEvent {
   id: string;
@@ -38,11 +47,16 @@ export class SorobanRpcClient implements OnModuleInit {
   private readonly logger = new Logger(SorobanRpcClient.name);
   private rpc: rpc.Server;
 
-  constructor(private readonly config: ConfigService) { }
+  constructor(private readonly config: ConfigService) {}
 
   onModuleInit() {
-    const rpcUrl = this.config.get<string>('SOROBAN_RPC_URL', 'https://soroban-testnet.stellar.org');
-    this.rpc = new rpc.Server(rpcUrl, { allowHttp: rpcUrl.startsWith('http://') });
+    const rpcUrl = this.config.get<string>(
+      'SOROBAN_RPC_URL',
+      'https://soroban-testnet.stellar.org',
+    );
+    this.rpc = new rpc.Server(rpcUrl, {
+      allowHttp: rpcUrl.startsWith('http://'),
+    });
     this.logger.log(`Soroban RPC client initialised → ${rpcUrl}`);
   }
 
@@ -76,7 +90,11 @@ export class SorobanRpcClient implements OnModuleInit {
     durability: rpc.Durability = rpc.Durability.Persistent,
   ): Promise<ContractDataResult | null> {
     try {
-      const response = await this.rpc.getContractData(contractId, key, durability);
+      const response = await this.rpc.getContractData(
+        contractId,
+        key,
+        durability,
+      );
 
       if (!response?.val) return null;
 
@@ -110,7 +128,12 @@ export class SorobanRpcClient implements OnModuleInit {
     eventTypes?: ('contract' | 'system' | 'diagnostic')[];
     limit?: number;
   }): Promise<SorobanEvent[]> {
-    const { startLedger, contractIds, eventTypes = ['contract'], limit = 200 } = params;
+    const {
+      startLedger,
+      contractIds,
+      eventTypes = ['contract'],
+      limit = 200,
+    } = params;
 
     const filters: rpc.Api.EventFilter[] = contractIds.map((id) => ({
       type: eventTypes[0] as rpc.Api.EventFilter['type'],
@@ -179,9 +202,7 @@ export class SorobanRpcClient implements OnModuleInit {
     maxDelayMs: 15_000,
     operationName: 'soroban:getTransaction',
   })
-  async getTransaction(
-    hash: string,
-  ): Promise<rpc.Api.GetTransactionResponse> {
+  async getTransaction(hash: string): Promise<rpc.Api.GetTransactionResponse> {
     const result = await this.rpc.getTransaction(hash);
     // NOT_FOUND means still pending — treat as retriable
     if (result.status === rpc.Api.GetTransactionStatus.NOT_FOUND) {
@@ -219,6 +240,8 @@ export class SorobanRpcClient implements OnModuleInit {
       }
     }
 
-    throw new Error(`Transaction ${sendResult.hash} did not confirm within ${timeoutMs}ms`);
+    throw new Error(
+      `Transaction ${sendResult.hash} did not confirm within ${timeoutMs}ms`,
+    );
   }
 }

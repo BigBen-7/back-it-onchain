@@ -23,11 +23,15 @@ export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
 
   // ── Connection ────────────────────────────────────────────────────────────
-  host:     process.env.DB_HOST     || process.env.POSTGRES_HOST     || 'localhost',
-  port:     parseInt(process.env.DB_PORT || process.env.POSTGRES_PORT || '5432', 10),
-  username: process.env.DB_USERNAME || process.env.POSTGRES_USER     || 'postgres',
-  password: process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || 'postgres',
-  database: process.env.DB_NAME     || process.env.POSTGRES_DB       || 'backit',
+  host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'localhost',
+  port: parseInt(
+    process.env.DB_PORT || process.env.POSTGRES_PORT || '5432',
+    10,
+  ),
+  username: process.env.DB_USERNAME || process.env.POSTGRES_USER || 'postgres',
+  password:
+    process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || process.env.POSTGRES_DB || 'backit',
 
   // ── Schema management ─────────────────────────────────────────────────────
   // synchronize is ALWAYS false here — migrations are the only way schema changes.
@@ -37,19 +41,18 @@ export const dataSourceOptions: DataSourceOptions = {
   // ── Entity discovery ──────────────────────────────────────────────────────
   // Glob picks up every *.entity.ts in the src tree, so new entities are
   // automatically included without touching this file.
-  entities: [
-    path.join(__dirname, '**', '*.entity.{ts,js}'),
-  ],
+  entities: [path.join(__dirname, '**', '*.entity.{ts,js}')],
 
   // ── Migrations ────────────────────────────────────────────────────────────
-  migrations: [
-    path.join(__dirname, 'migrations', '*.{ts,js}'),
-  ],
+  migrations: [path.join(__dirname, 'migrations', '*.{ts,js}')],
   migrationsTableName: 'typeorm_migrations', // explicit name prevents accidental conflicts
 
   // ── Logging ───────────────────────────────────────────────────────────────
   // Log all queries in development; only errors in production.
-  logging: process.env.NODE_ENV === 'production' ? ['error'] : ['error', 'warn', 'schema'],
+  logging:
+    process.env.NODE_ENV === 'production'
+      ? ['error']
+      : ['error', 'warn', 'schema'],
 };
 
 /**

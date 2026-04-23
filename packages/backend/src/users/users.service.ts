@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Readable } from 'stream';
@@ -44,27 +48,27 @@ export class UsersService {
   ) {}
 
   async create(data: {
-  wallet: string;
-  handle?: string;
-  bio?: string;
-  displayName?: string;
-  avatarCid?: string;
-}): Promise<User> {
-  const existing = await this.findByWallet(data.wallet);
-  if (existing) {
-    throw new ConflictException('User already exists');
-  }
-
-  if (data.handle) {
-    const handleExists = await this.findByHandle(data.handle);
-    if (handleExists) {
-      throw new ConflictException('Handle already taken');
+    wallet: string;
+    handle?: string;
+    bio?: string;
+    displayName?: string;
+    avatarCid?: string;
+  }): Promise<User> {
+    const existing = await this.findByWallet(data.wallet);
+    if (existing) {
+      throw new ConflictException('User already exists');
     }
-  }
 
-  const user = this.usersRepository.create(data);
-  return this.usersRepository.save(user);
-}
+    if (data.handle) {
+      const handleExists = await this.findByHandle(data.handle);
+      if (handleExists) {
+        throw new ConflictException('Handle already taken');
+      }
+    }
+
+    const user = this.usersRepository.create(data);
+    return this.usersRepository.save(user);
+  }
 
   async findByWallet(wallet: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { wallet } });
@@ -177,7 +181,9 @@ export class UsersService {
    * Idempotent — silently skips if a row already exists.
    */
   async createDefaultSettings(wallet: string): Promise<UserSettings> {
-    const existing = await this.userSettingsRepository.findOne({ where: { wallet } });
+    const existing = await this.userSettingsRepository.findOne({
+      where: { wallet },
+    });
     if (existing) return existing;
 
     const settings = this.userSettingsRepository.create({ wallet });
@@ -190,7 +196,9 @@ export class UsersService {
    * accounts that pre-date this feature).
    */
   async getSettings(wallet: string): Promise<UserSettings> {
-    const settings = await this.userSettingsRepository.findOne({ where: { wallet } });
+    const settings = await this.userSettingsRepository.findOne({
+      where: { wallet },
+    });
     if (settings) return settings;
 
     // Back-fill default settings for pre-existing accounts
@@ -212,7 +220,9 @@ export class UsersService {
     }
 
     // Ensure the row exists before patching
-    let settings = await this.userSettingsRepository.findOne({ where: { wallet } });
+    let settings = await this.userSettingsRepository.findOne({
+      where: { wallet },
+    });
     if (!settings) {
       settings = await this.createDefaultSettings(wallet);
     }
@@ -290,7 +300,10 @@ export class UsersService {
    * Wraps the pg row stream in a JSON array stream.
    * Emits: `[\n`, then `{...},\n` per row, then `]\n`.
    */
-  private toJsonStream(pgStream: Readable, queryRunner: import('typeorm').QueryRunner): Readable {
+  private toJsonStream(
+    pgStream: Readable,
+    queryRunner: import('typeorm').QueryRunner,
+  ): Readable {
     let first = true;
     const output = new Readable({ read() {} });
 
@@ -320,23 +333,26 @@ export class UsersService {
    * Pipes the pg row stream through csv-stringify's transform stream.
    * The first row's keys become the CSV header.
    */
-  private toCsvStream(pgStream: Readable, queryRunner: import('typeorm').QueryRunner): Readable {
+  private toCsvStream(
+    pgStream: Readable,
+    queryRunner: import('typeorm').QueryRunner,
+  ): Readable {
     const csvTransform = stringify({
       header: true,
       columns: [
-        { key: 'call_id',     header: 'Call ID' },
-        { key: 'title',       header: 'Title' },
-        { key: 'chain',       header: 'Chain' },
-        { key: 'status',      header: 'Status' },
-        { key: 'position',    header: 'Position' },
-        { key: 'stake_yes',   header: 'Stake YES' },
-        { key: 'stake_no',    header: 'Stake NO' },
-        { key: 'outcome',     header: 'Outcome' },
+        { key: 'call_id', header: 'Call ID' },
+        { key: 'title', header: 'Title' },
+        { key: 'chain', header: 'Chain' },
+        { key: 'status', header: 'Status' },
+        { key: 'position', header: 'Position' },
+        { key: 'stake_yes', header: 'Stake YES' },
+        { key: 'stake_no', header: 'Stake NO' },
+        { key: 'outcome', header: 'Outcome' },
         { key: 'final_price', header: 'Final Price' },
-        { key: 'pnl',         header: 'PnL' },
-        { key: 'start_ts',    header: 'Start' },
-        { key: 'end_ts',      header: 'End' },
-        { key: 'created_at',  header: 'Created At' },
+        { key: 'pnl', header: 'PnL' },
+        { key: 'start_ts', header: 'Start' },
+        { key: 'end_ts', header: 'End' },
+        { key: 'created_at', header: 'Created At' },
       ],
     });
 

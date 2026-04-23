@@ -333,7 +333,7 @@ describe('OracleService', () => {
       const tokenAddress = '0x1234567890123456789012345678901234567890';
       const price = await service.fetchPrice(tokenAddress);
 
-      expect(price).toBe(1500.50);
+      expect(price).toBe(1500.5);
       expect(global.fetch).toHaveBeenCalledWith(
         `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`,
         expect.objectContaining({
@@ -496,7 +496,7 @@ describe('OracleService', () => {
         (global.fetch as any) = jest.fn(() => {
           attemptCount++;
           if (attemptCount < 3) {
-            return Promise.reject(networkError) as Promise<Response>;
+            return Promise.reject(networkError);
           }
           return Promise.resolve({
             ok: true,
@@ -510,7 +510,7 @@ describe('OracleService', () => {
                 },
               ],
             }),
-          } as unknown as Response) as Promise<Response>;
+          } as unknown as Response);
         });
 
         const pricePromise = service.fetchPrice('0xtoken');
@@ -555,7 +555,7 @@ describe('OracleService', () => {
         (global.fetch as any) = jest.fn(() => {
           attemptCount++;
           if (attemptCount < 2) {
-            return Promise.reject(networkError) as Promise<Response>;
+            return Promise.reject(networkError);
           }
           return Promise.resolve({
             ok: true,
@@ -569,7 +569,7 @@ describe('OracleService', () => {
                 },
               ],
             }),
-          } as unknown as Response) as Promise<Response>;
+          } as unknown as Response);
         });
 
         const pricePromise = service.fetchPrice('0xtoken');
@@ -638,7 +638,7 @@ describe('OracleService', () => {
               json: async () => {
                 throw new Error('Invalid JSON');
               },
-            } as unknown as Response) as Promise<Response>;
+            } as unknown as Response);
           }
           return Promise.resolve({
             ok: true,
@@ -652,7 +652,7 @@ describe('OracleService', () => {
                 },
               ],
             }),
-          } as unknown as Response) as Promise<Response>;
+          } as unknown as Response);
         });
 
         const pricePromise = service.fetchPrice('0xtoken');
@@ -858,36 +858,32 @@ describe('OracleService', () => {
       expect(typeof signature).toBe('string');
     });
 
-    it(
-      'should handle outcome resolution with failed price fetch',
-      async () => {
-        const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    it('should handle outcome resolution with failed price fetch', async () => {
+      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
 
-        try {
-          global.fetch = jest.fn().mockRejectedValue(new Error('API down'));
+      try {
+        global.fetch = jest.fn().mockRejectedValue(new Error('API down'));
 
-          const pricePromise = service.fetchPriceSafe('0xtoken');
-          // Ensure the first failed attempt schedules its retry timer.
-          await Promise.resolve();
-          const price = await pricePromise;
-          expect(price).toBeNull();
+        const pricePromise = service.fetchPriceSafe('0xtoken');
+        // Ensure the first failed attempt schedules its retry timer.
+        await Promise.resolve();
+        const price = await pricePromise;
+        expect(price).toBeNull();
 
-          // Should still be able to sign with default price if available
-          const signature = await service.signOutcomeForChain(
-            'base',
-            1,
-            true,
-            0, // fallback price
-            Math.floor(Date.now() / 1000),
-          );
+        // Should still be able to sign with default price if available
+        const signature = await service.signOutcomeForChain(
+          'base',
+          1,
+          true,
+          0, // fallback price
+          Math.floor(Date.now() / 1000),
+        );
 
-          expect(signature).toBeTruthy();
-        } finally {
-          randomSpy.mockRestore();
-        }
-      },
-      20000,
-    );
+        expect(signature).toBeTruthy();
+      } finally {
+        randomSpy.mockRestore();
+      }
+    }, 20000);
 
     it('should maintain price consistency for single call resolution', async () => {
       global.fetch = jest.fn().mockResolvedValue({

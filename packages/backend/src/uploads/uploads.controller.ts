@@ -40,9 +40,9 @@ export class UploadsController {
   @Post('image')
   @UseInterceptors(
     FileInterceptor('image', {
-      storage: memoryStorage(),           // keep buffer in RAM — no disk I/O
+      storage: memoryStorage(), // keep buffer in RAM — no disk I/O
       limits: {
-        fileSize: 10 * 1024 * 1024,       // 10 MB raw upload cap
+        fileSize: 10 * 1024 * 1024, // 10 MB raw upload cap
         files: 1,
       },
       fileFilter: (_req, file, cb) => {
@@ -56,11 +56,15 @@ export class UploadsController {
   )
   async uploadImage(
     @UploadedFile() file: Express.Multer.File,
-    @Query('maxDimension', new DefaultValuePipe(400), ParseIntPipe) maxDimension: number,
-    @Query('maxSizeKb', new DefaultValuePipe(200), ParseIntPipe) maxSizeKb: number,
+    @Query('maxDimension', new DefaultValuePipe(400), ParseIntPipe)
+    maxDimension: number,
+    @Query('maxSizeKb', new DefaultValuePipe(200), ParseIntPipe)
+    maxSizeKb: number,
   ) {
     if (!file) {
-      throw new BadRequestException('No image file provided (field name: "image")');
+      throw new BadRequestException(
+        'No image file provided (field name: "image")',
+      );
     }
 
     return this.uploadsService.processAndUploadImage(

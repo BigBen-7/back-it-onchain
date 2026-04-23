@@ -120,9 +120,9 @@ describe('UsersService', () => {
     it('should throw if wallet already exists', async () => {
       usersRepo.findOne.mockResolvedValue({ wallet: '0x123' } as User);
 
-      await expect(
-        service.create({ wallet: '0x123' }),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.create({ wallet: '0x123' })).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should throw if handle is taken', async () => {
@@ -165,9 +165,7 @@ describe('UsersService', () => {
     it('should throw if handle is already taken', async () => {
       const user = { wallet: '0x123', handle: 'old' } as User;
 
-      jest
-        .spyOn(service, 'findByWallet')
-        .mockResolvedValue(user);
+      jest.spyOn(service, 'findByWallet').mockResolvedValue(user);
 
       jest
         .spyOn(service, 'findByHandle')

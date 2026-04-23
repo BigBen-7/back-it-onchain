@@ -393,15 +393,25 @@ describe('FeedService', () => {
       const qb = buildActivityQueryBuilderMock(activityRows);
       stakeActivityRepository.createQueryBuilder.mockReturnValue(qb);
 
-      const call = mockCall({ id: 1, callOnchainId: '123', totalStakeYes: 400, totalStakeNo: 100 });
+      const call = mockCall({
+        id: 1,
+        callOnchainId: '123',
+        totalStakeYes: 400,
+        totalStakeNo: 100,
+      });
       callRepository.find.mockResolvedValue([call]);
 
       const result = await service.getTrendingFeed(10, 0);
 
-      expect(stakeActivityRepository.createQueryBuilder).toHaveBeenCalledWith('activity');
+      expect(stakeActivityRepository.createQueryBuilder).toHaveBeenCalledWith(
+        'activity',
+      );
       expect(callRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ callOnchainId: In(['123']), isHidden: false }),
+          where: expect.objectContaining({
+            callOnchainId: In(['123']),
+            isHidden: false,
+          }),
           relations: ['creator'],
         }),
       );
@@ -412,7 +422,11 @@ describe('FeedService', () => {
         participantCount24h: 10,
         isHot: true,
       });
-      expect(cacheManager.set).toHaveBeenCalledWith('feed:trending:24h', expect.any(Array), 300);
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        'feed:trending:24h',
+        expect.any(Array),
+        300,
+      );
     });
   });
 });

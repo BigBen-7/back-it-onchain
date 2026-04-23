@@ -15,7 +15,8 @@ import { Retryable } from '../decorators/retryable.decorator';
 
 // ── Suppress logger noise in tests ──────────────────────────────────────────
 jest.mock('@nestjs/common', () => {
-  const actual = jest.requireActual<typeof import('@nestjs/common')>('@nestjs/common');
+  const actual =
+    jest.requireActual<typeof import('@nestjs/common')>('@nestjs/common');
   return {
     ...actual,
     Logger: class {
@@ -103,7 +104,8 @@ describe('withRetry', () => {
     let calls = 0;
     const fn = jest.fn().mockImplementation(() => {
       calls++;
-      if (calls < 3) return Promise.reject(new Error('HTTP 429 rate limit exceeded'));
+      if (calls < 3)
+        return Promise.reject(new Error('HTTP 429 rate limit exceeded'));
       return Promise.resolve('after rate limit');
     });
 

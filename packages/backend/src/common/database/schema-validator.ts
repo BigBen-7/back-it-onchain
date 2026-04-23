@@ -121,12 +121,15 @@ export class SchemaValidator {
     const entities = this.dataSource.entityMetadatas;
 
     for (const entity of entities) {
-      const dbColumns = await this.dataSource.query(`
+      const dbColumns = await this.dataSource.query(
+        `
         SELECT column_name 
         FROM information_schema.columns 
         WHERE table_schema = 'public' 
         AND table_name = $1
-      `, [entity.tableName]);
+      `,
+        [entity.tableName],
+      );
 
       const dbColumnNames = dbColumns.map((col: any) => col.column_name);
 
@@ -167,12 +170,15 @@ export class SchemaValidator {
     };
 
     for (const entity of entities) {
-      const dbColumns = await this.dataSource.query(`
+      const dbColumns = await this.dataSource.query(
+        `
         SELECT column_name, data_type, udt_name
         FROM information_schema.columns 
         WHERE table_schema = 'public' 
         AND table_name = $1
-      `, [entity.tableName]);
+      `,
+        [entity.tableName],
+      );
 
       for (const column of entity.columns) {
         const dbColumn = dbColumns.find(
@@ -182,7 +188,9 @@ export class SchemaValidator {
 
         if (dbColumn) {
           const entityType = String(column.type).toLowerCase();
-          const dbType = (dbColumn.udt_name || dbColumn.data_type).toLowerCase();
+          const dbType = (
+            dbColumn.udt_name || dbColumn.data_type
+          ).toLowerCase();
           const expectedTypes = typeMap[entityType] || [entityType];
 
           if (!expectedTypes.includes(dbType)) {
@@ -203,12 +211,15 @@ export class SchemaValidator {
     const entities = this.dataSource.entityMetadatas;
 
     for (const entity of entities) {
-      const dbColumns = await this.dataSource.query(`
+      const dbColumns = await this.dataSource.query(
+        `
         SELECT column_name, is_nullable
         FROM information_schema.columns 
         WHERE table_schema = 'public' 
         AND table_name = $1
-      `, [entity.tableName]);
+      `,
+        [entity.tableName],
+      );
 
       for (const column of entity.columns) {
         if (column.isPrimary || column.relationMetadata) {
@@ -332,7 +343,9 @@ if (require.main === module) {
       if (report.errors.length > 0) {
         console.log('\n❌ ERRORS:');
         report.errors.forEach((error, index) => {
-          console.log(`  ${index + 1}. [${error.table || 'GENERAL'}] ${error.issue}`);
+          console.log(
+            `  ${index + 1}. [${error.table || 'GENERAL'}] ${error.issue}`,
+          );
           if (error.details) {
             console.log(`     └─ ${error.details}`);
           }
@@ -342,7 +355,9 @@ if (require.main === module) {
       if (report.warnings.length > 0) {
         console.log('\n⚠️  WARNINGS:');
         report.warnings.forEach((warning, index) => {
-          console.log(`  ${index + 1}. [${warning.table || 'GENERAL'}] ${warning.issue}`);
+          console.log(
+            `  ${index + 1}. [${warning.table || 'GENERAL'}] ${warning.issue}`,
+          );
           if (warning.details) {
             console.log(`     └─ ${warning.details}`);
           }

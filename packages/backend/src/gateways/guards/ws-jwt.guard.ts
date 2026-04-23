@@ -1,7 +1,8 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
-import { Socket } from 'socket.io';
+
+import { AuthenticatedSocket } from '../events.types';
 
 /**
  * Guard for WebSocket message handlers that require an authenticated user.
@@ -15,7 +16,9 @@ export class WsJwtGuard implements CanActivate {
   constructor(private readonly jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const client: Socket = context.switchToWs().getClient<Socket>();
+    const client: AuthenticatedSocket = context
+      .switchToWs()
+      .getClient<AuthenticatedSocket>();
 
     // Fast path — already authenticated at connection time
     if (client.data.userId) {

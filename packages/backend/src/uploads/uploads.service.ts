@@ -26,7 +26,12 @@ export interface ImageProcessingOptions {
   maxSizeBytes?: number;
 }
 
-const SUPPORTED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const SUPPORTED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]);
 const DEFAULT_MAX_DIMENSION = 400;
 const DEFAULT_MAX_SIZE_BYTES = 200 * 1024; // 200 KB
 
@@ -60,10 +65,10 @@ export class UploadsService {
     }
 
     // ── Step 1: Resize ───────────────────────────────────────────────────────
-    let pipeline = sharp(buffer).resize({
+    const pipeline = sharp(buffer).resize({
       width: maxDimension,
       height: maxDimension,
-      fit: 'inside',        // never upscale, never crop
+      fit: 'inside', // never upscale, never crop
       withoutEnlargement: true,
     });
 

@@ -130,7 +130,11 @@ export class AuthService {
    * Verifies an EIP-191 personal_sign signature (Base / EVM chains).
    * Returns true when the recovered signer matches the claimed address.
    */
-  verifyEip191Signature(address: string, message: string, signature: string): boolean {
+  verifyEip191Signature(
+    address: string,
+    message: string,
+    signature: string,
+  ): boolean {
     try {
       const recovered = ethers.verifyMessage(message, signature);
       return recovered.toLowerCase() === address.toLowerCase();
@@ -146,7 +150,11 @@ export class AuthService {
    * and submits the signature as a hex string.  We derive the public key from
    * the Stellar G… address and verify with tweetnacl.
    */
-  verifyStellarSignature(address: string, message: string, signatureHex: string): boolean {
+  verifyStellarSignature(
+    address: string,
+    message: string,
+    signatureHex: string,
+  ): boolean {
     try {
       // Validate that the address is a valid Stellar public key (G… address)
       if (!StrKey.isValidEd25519PublicKey(address)) {
@@ -159,7 +167,11 @@ export class AuthService {
       const messageBytes = Buffer.from(message, 'utf8');
       const signatureBytes = Buffer.from(signatureHex, 'hex');
 
-      return nacl.sign.detached.verify(messageBytes, signatureBytes, publicKeyBytes);
+      return nacl.sign.detached.verify(
+        messageBytes,
+        signatureBytes,
+        publicKeyBytes,
+      );
     } catch {
       return false;
     }
@@ -180,7 +192,9 @@ export class AuthService {
   ): Promise<string> {
     const nonce = this.consumeNonce(address);
     if (!nonce) {
-      throw new UnauthorizedException('No pending nonce for this address — request a new one');
+      throw new UnauthorizedException(
+        'No pending nonce for this address — request a new one',
+      );
     }
 
     const message = this.buildSignMessage(address, nonce);

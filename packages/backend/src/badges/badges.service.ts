@@ -28,12 +28,13 @@ export class BadgesService {
    */
   async checkAndGrantBadges(wallet: string): Promise<void> {
     try {
-      const [callCount, winsCount, totalStake, followerCount] = await Promise.all([
-        this.getCallCount(wallet),
-        this.getWinsCount(wallet),
-        this.getTotalStake(wallet),
-        this.getFollowerCount(wallet),
-      ]);
+      const [callCount, winsCount, totalStake, followerCount] =
+        await Promise.all([
+          this.getCallCount(wallet),
+          this.getWinsCount(wallet),
+          this.getTotalStake(wallet),
+          this.getFollowerCount(wallet),
+        ]);
 
       const earned: BadgeKey[] = [];
       if (callCount >= 1) earned.push(BadgeKey.FIRST_CALL);
@@ -51,7 +52,9 @@ export class BadgesService {
   }
 
   private async grantIfNew(wallet: string, badge: BadgeKey): Promise<void> {
-    const existing = await this.userBadgeRepo.findOne({ where: { wallet, badge } });
+    const existing = await this.userBadgeRepo.findOne({
+      where: { wallet, badge },
+    });
     if (existing) return;
 
     await this.userBadgeRepo.save(this.userBadgeRepo.create({ wallet, badge }));

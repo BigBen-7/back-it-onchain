@@ -1,4 +1,8 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
@@ -40,7 +44,9 @@ export class IpfsService {
     try {
       return await this.pinViaKubo(buffer, filename);
     } catch (err) {
-      this.logger.warn(`Kubo upload failed, trying Pinata: ${(err as Error).message}`);
+      this.logger.warn(
+        `Kubo upload failed, trying Pinata: ${(err as Error).message}`,
+      );
     }
 
     // 2. Try Pinata
@@ -92,7 +98,9 @@ export class IpfsService {
       }
     }
 
-    throw new ServiceUnavailableException(`Could not fetch CID ${cid} from any gateway`);
+    throw new ServiceUnavailableException(
+      `Could not fetch CID ${cid} from any gateway`,
+    );
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────
@@ -102,13 +110,19 @@ export class IpfsService {
    */
   private async pinViaKubo(buffer: Buffer, filename: string): Promise<string> {
     const formData = new FormData();
-    const ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+    const ab = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength,
+    ) as ArrayBuffer;
     formData.append('file', new Blob([ab]), filename);
 
-    const res = await globalThis.fetch(`${this.ipfsApiUrl}/api/v0/add?pin=true`, {
-      method: 'POST',
-      body: formData,
-    });
+    const res = await globalThis.fetch(
+      `${this.ipfsApiUrl}/api/v0/add?pin=true`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+    );
 
     if (!res.ok) {
       throw new Error(`Kubo responded ${res.status}: ${await res.text()}`);
@@ -124,9 +138,15 @@ export class IpfsService {
   /**
    * Pins a buffer via the Pinata REST API (pinFileToIPFS).
    */
-  private async pinViaPinata(buffer: Buffer, filename: string): Promise<string> {
+  private async pinViaPinata(
+    buffer: Buffer,
+    filename: string,
+  ): Promise<string> {
     const formData = new FormData();
-    const ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+    const ab = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength,
+    ) as ArrayBuffer;
     formData.append('file', new Blob([ab]), filename);
 
     const res = await globalThis.fetch(

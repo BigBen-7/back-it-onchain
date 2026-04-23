@@ -11,7 +11,7 @@ export class CallsService {
   constructor(
     @InjectRepository(Call)
     private callsRepository: Repository<Call>,
-  ) { }
+  ) {}
 
   async create(callData: Partial<Call>): Promise<Call> {
     const call = this.callsRepository.create(callData);
@@ -34,7 +34,10 @@ export class CallsService {
     return this.callsRepository.findOne({ where: { id } });
   }
 
-  async report(id: number, reason: string): Promise<{ success: boolean; message: string }> {
+  async report(
+    id: number,
+    reason: string,
+  ): Promise<{ success: boolean; message: string }> {
     const call = await this.callsRepository.findOne({ where: { id } });
     if (!call) {
       return { success: false, message: 'Call not found' };
@@ -47,7 +50,9 @@ export class CallsService {
 
     await this.callsRepository.save(call);
 
-    console.log(`[Report Received] Call ID: ${id} | Reason: ${reason} | Report Count: ${call.reportCount}`);
+    console.log(
+      `[Report Received] Call ID: ${id} | Reason: ${reason} | Report Count: ${call.reportCount}`,
+    );
     return { success: true, message: 'Report submitted successfully' };
   }
 

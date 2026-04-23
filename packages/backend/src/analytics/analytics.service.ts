@@ -47,7 +47,7 @@ const CHAIN_TO_GECKO_NETWORK: Record<string, string> = {
 
 // Number of hourly candles to request per period
 const PERIOD_LIMIT: Record<PriceHistoryPeriod, number> = {
-  [PriceHistoryPeriod.SEVEN_DAYS]: 168,  // 7 × 24
+  [PriceHistoryPeriod.SEVEN_DAYS]: 168, // 7 × 24
   [PriceHistoryPeriod.THIRTY_DAYS]: 720, // 30 × 24
 };
 

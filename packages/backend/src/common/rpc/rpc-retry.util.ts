@@ -149,7 +149,10 @@ export async function withRetry<T>(
 
       if (attempt === maxAttempts) break; // don't sleep on the final failure
 
-      const rawDelay = Math.min(baseDelayMs * Math.pow(factor, attempt - 1), maxDelayMs);
+      const rawDelay = Math.min(
+        baseDelayMs * Math.pow(factor, attempt - 1),
+        maxDelayMs,
+      );
       const jitterMs = rawDelay * jitter * (Math.random() * 2 - 1); // ±jitter%
       const delay = Math.max(0, Math.round(rawDelay + jitterMs));
 
@@ -192,7 +195,7 @@ export function sorobanRetryConfig(options: RetryOptions = {}) {
   } = options;
 
   // Imported lazily so this file stays usable in projects without rxjs
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const { timer, throwError } = require('rxjs') as typeof import('rxjs');
 
   return {
@@ -200,13 +203,16 @@ export function sorobanRetryConfig(options: RetryOptions = {}) {
     delay: (error: Error, retryIndex: number) => {
       if (error instanceof RpcNonRetryableError) return throwError(() => error);
 
-      const rawDelay = Math.min(baseDelayMs * Math.pow(factor, retryIndex - 1), maxDelayMs);
+      const rawDelay = Math.min(
+        baseDelayMs * Math.pow(factor, retryIndex - 1),
+        maxDelayMs,
+      );
       const jitterMs = rawDelay * jitter * (Math.random() * 2 - 1);
       const delay = Math.max(0, Math.round(rawDelay + jitterMs));
 
       logger.warn(
         `[${operationName}] RxJS retry ${retryIndex}/${maxAttempts - 1} — ` +
-          `waiting ${delay}ms. Error: ${(error as Error).message}`,
+          `waiting ${delay}ms. Error: ${error.message}`,
       );
 
       return timer(delay);
@@ -228,12 +234,20 @@ export function defaultSorobanIsRetryable(err: Error): boolean {
   const msg = err.message.toLowerCase();
 
   // Rate-limit (429) → always retry
-  if (msg.includes('429') || msg.includes('rate limit') || msg.includes('too many requests')) {
+  if (
+    msg.includes('429') ||
+    msg.includes('rate limit') ||
+    msg.includes('too many requests')
+  ) {
     return true;
   }
 
   // Other 4xx client errors → logic/auth errors, no point retrying
-  if (/\b4[0-9]{2}\b/.test(msg) && !msg.includes('408') && !msg.includes('425')) {
+  if (
+    /\b4[0-9]{2}\b/.test(msg) &&
+    !msg.includes('408') &&
+    !msg.includes('425')
+  ) {
     return false;
   }
 

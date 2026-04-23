@@ -9,8 +9,13 @@ import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [ConfigModule, AuthModule, TypeOrmModule.forFeature([Call, PlatformSettings]), NotificationsModule],
+  imports: [
+    ConfigModule,
+    AuthModule,
+    TypeOrmModule.forFeature([Call, PlatformSettings]),
+    NotificationsModule,
+  ],
   providers: [IndexerService],
   controllers: [IndexerController],
 })
-export class IndexerModule { }
+export class IndexerModule {}
